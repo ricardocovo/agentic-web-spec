@@ -10,7 +10,6 @@ import { ChatInterface } from "@/components/ChatInterface";
 import {
   createSession,
   addMessageToSession,
-  getSession,
   addActivity,
   Message,
   Session,
@@ -50,15 +49,18 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     const newSession = createSession(agent.slug, agent.name, activeRepo.fullName);
 
     if (handoffContext) {
-      const contextMsg: Message = {
-        id: crypto.randomUUID(),
+      const updatedSession = addMessageToSession(newSession.id, {
         role: "assistant",
         content: `📎 Context from previous agent:\n\n${handoffContext}`,
-        createdAt: Date.now(),
-      };
-      newSession.messages = [contextMsg];
-      addMessageToSession(newSession.id, { role: "assistant", content: contextMsg.content });
+      });
       sessionStorage.removeItem(handoffKey);
+
+      if (updatedSession) {
+        setSession(updatedSession);
+        sessionRef.current = updatedSession;
+        setMessages(updatedSession.messages);
+        return;
+      }
     }
 
     setSession(newSession);

@@ -91,11 +91,19 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+    // When the only message is the handoff context (assistant), scroll to top so
+    // the "📎 Context from previous agent:" header is visible rather than the end
+    // of a potentially very long deep-research response.
+    if (messages.length === 1 && messages[0].role === "assistant" && !isStreaming) {
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, streamingContent, isStreaming]);
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();
@@ -117,7 +125,7 @@ export function ChatInterface({
   return (
     <div className="flex flex-col h-[calc(100vh-13rem)]">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.length === 0 && !isStreaming && (
           <div className="text-center py-16 text-muted text-sm">
             <div
