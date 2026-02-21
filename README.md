@@ -80,6 +80,8 @@ The **backend** handles repository operations via the GitHub CLI (`gh`) and spaw
 
 Agent configurations are stored as YAML files in `backend/agents/` and describe the model, system prompt, and tool permissions for each agent.
 
+For detailed Mermaid diagrams covering the system overview, agent run sequence, and agent pipeline, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ---
 
 ## Technology Stack
