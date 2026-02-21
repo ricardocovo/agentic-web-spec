@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, ArrowRight, User, Bot } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
 import { AgentConfig } from "@/lib/agents";
 
@@ -36,13 +38,21 @@ function MessageBubble({ msg }: { msg: Message }) {
 
       {/* Bubble */}
       <div
-        className={`max-w-[80%] px-4 py-3 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+        className={`max-w-[80%] px-4 py-3 rounded-xl text-sm leading-relaxed ${
           isUser
-            ? "bg-accent/15 text-text-primary rounded-tr-sm"
+            ? "bg-accent/15 text-text-primary rounded-tr-sm whitespace-pre-wrap"
             : "bg-surface-2 border border-border text-text-primary rounded-tl-sm"
         }`}
       >
-        {msg.content}
+        {isUser ? (
+          msg.content
+        ) : (
+          <div className="md-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {msg.content}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -54,8 +64,12 @@ function StreamingBubble({ content, agentColor }: { content: string; agentColor:
       <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-surface-2">
         <Bot size={14} className="text-text-secondary" />
       </div>
-      <div className="max-w-[80%] px-4 py-3 rounded-xl rounded-tl-sm text-sm leading-relaxed bg-surface-2 border border-border text-text-primary whitespace-pre-wrap">
-        {content}
+      <div className="max-w-[80%] px-4 py-3 rounded-xl rounded-tl-sm text-sm leading-relaxed bg-surface-2 border border-border text-text-primary">
+        <div className="md-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+        </div>
         <span
           className="inline-block w-1.5 h-4 ml-0.5 align-text-bottom animate-pulse rounded-sm"
           style={{ backgroundColor: agentColor }}
