@@ -42,7 +42,10 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     if (!agent || !activeRepo) return;
 
-    // Check for pre-loaded context from handoff (stored in sessionStorage)
+    // Check for pre-loaded context from handoff (stored in sessionStorage).
+    // NOTE: We intentionally do NOT remove the key here — React Strict Mode
+    // double-fires effects, so the second run would miss the value.  The key
+    // is cleared in handleSend once the context has been consumed.
     const handoffKey = `web_spec_handoff_${params.slug}`;
     const handoffContext = typeof window !== "undefined" ? sessionStorage.getItem(handoffKey) : null;
 
@@ -53,7 +56,6 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         role: "assistant",
         content: `📎 Context from previous agent:\n\n${handoffContext}`,
       });
-      sessionStorage.removeItem(handoffKey);
 
       if (updatedSession) {
         setSession(updatedSession);
@@ -100,6 +102,9 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
             : m.content
         )
         .join("\n\n");
+
+      // Clean up the handoff key now that context has been consumed
+      sessionStorage.removeItem(`web_spec_handoff_${params.slug}`);
 
       try {
         const res = await fetch("/api/backend/agent/run", {
