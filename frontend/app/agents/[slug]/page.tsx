@@ -88,10 +88,15 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         description: `${agent?.name}: "${content.slice(0, 60)}..."`,
       });
 
-      // Build context from previous messages
+      // Build context from previous messages, stripping the UI-only handoff prefix
+      const HANDOFF_PREFIX = "📎 Context from previous agent:\n\n";
       const context = updated.messages
-        .filter((m) => m.role === "assistant" && !m.content.startsWith("📎"))
-        .map((m) => m.content)
+        .filter((m) => m.role === "assistant")
+        .map((m) =>
+          m.content.startsWith(HANDOFF_PREFIX)
+            ? m.content.slice(HANDOFF_PREFIX.length)
+            : m.content
+        )
         .join("\n\n");
 
       try {
