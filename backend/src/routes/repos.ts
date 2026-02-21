@@ -5,6 +5,12 @@ import path from "path";
 
 export const reposRouter = Router();
 
+function sanitizePAT(text: string, pat: string): string {
+  if (!pat) return text;
+  const escaped = pat.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(escaped, "g"), "***");
+}
+
 import os from "os";
 
 const WORK_DIR = process.env.WORK_DIR || path.join(os.homedir(), "work");
@@ -29,9 +35,17 @@ reposRouter.post("/clone", async (req: Request, res: Response) => {
   const [, repoName] = repoFullName.split("/");
   const repoPath = getRepoPath(username, repoName);
 
-  // Already cloned
+  // Already cloned — fetch latest changes
   if (fs.existsSync(repoPath)) {
-    res.json({ success: true, repoPath, alreadyCloned: true });
+    try {
+      execSync(`git fetch origin`, { cwd: repoPath, timeout: 30000, stdio: "pipe" });
+      execSync(`git reset --hard origin/HEAD`, { cwd: repoPath, timeout: 30000, stdio: "pipe" });
+      res.json({ success: true, repoPath, alreadyCloned: true, synced: true });
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : "Sync failed";
+      const sanitized = sanitizePAT(raw, pat);
+      res.status(500).json({ error: sanitized });
+    }
     return;
   }
 

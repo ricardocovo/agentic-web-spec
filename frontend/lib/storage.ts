@@ -156,6 +156,32 @@ export function addMessageToSession(
   return session;
 }
 
+// --- Repo Context Clearing ---
+
+export function clearAllSessions(): void {
+  if (!isBrowser()) return;
+  localStorage.removeItem(SESSIONS_KEY);
+}
+
+export function clearAllActivity(): void {
+  if (!isBrowser()) return;
+  localStorage.removeItem(ACTIVITY_KEY);
+}
+
+export function clearAllAgentHandoffs(): void {
+  if (!isBrowser()) return;
+  const keysToRemove = Object.keys(sessionStorage).filter((k) =>
+    k.startsWith("web_spec_handoff_")
+  );
+  keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+}
+
+export function clearAllRepoContext(): void {
+  clearAllSessions();
+  clearAllActivity();
+  clearAllAgentHandoffs();
+}
+
 // --- Activity ---
 
 export function getActivity(): ActivityEvent[] {

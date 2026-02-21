@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { X, Search, GitFork, Star, Loader2, Lock, Globe } from "lucide-react";
 import { useApp } from "@/lib/context";
-import { ActiveRepo } from "@/lib/storage";
+import { ActiveRepo, clearAllRepoContext } from "@/lib/storage";
 
 interface GitHubRepo {
   id: number;
@@ -101,6 +101,7 @@ export function RepoSelectorModal({ onClose }: RepoSelectorModalProps) {
         clonedAt: Date.now(),
       };
 
+      clearAllRepoContext();
       setActiveRepo(activeRepo);
       onClose();
     } catch (err) {
