@@ -64,8 +64,9 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     setSession(newSession);
     sessionRef.current = newSession;
     setMessages(newSession.messages);
+  // activeRepo.fullName is intentionally included so the session resets when the repo switches
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.slug]);
+  }, [params.slug, activeRepo?.fullName]);
 
   const handleSend = useCallback(
     async (content: string) => {
