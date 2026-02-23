@@ -23,6 +23,7 @@ flowchart TD
         subgraph Routes["Routes"]
             ReposRoute["POST /api/repos/clone\nGET  /api/repos/status\nGET  /api/repos/tree\nDELETE /api/repos/remove"]
             AgentRoute["POST /api/agent/run\n— SSE Streaming —"]
+            KdbRoute["GET /api/kdb/spaces\n— GitHub Proxy —"]
         end
 
         YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
@@ -40,6 +41,7 @@ flowchart TD
 
     subgraph GitHub["GitHub"]
         GitHubAPI["GitHub REST API\nrepo search · user info"]
+        CopilotSpacesAPI["GitHub Copilot Spaces API\n/user/copilot/spaces"]
         GitRemote["github.com\ngit clone over HTTPS + PAT"]
         CopilotAPI["GitHub Copilot API\ngpt-4.1 model\ntool execution host"]
     end
@@ -56,6 +58,10 @@ flowchart TD
     %% Repos route
     ReposRoute -- "git clone --depth 1\n(HTTPS + PAT)" --> WorkDir
     ReposRoute -- HTTPS --> GitRemote
+
+    %% KDB route
+    KdbRoute -- "proxy GitHub PAT\n(forwards Authorization)" --> CopilotSpacesAPI
+    Pages -- "fetch /api/kdb/spaces" --> KdbRoute
 
     %% Agent route
     AgentRoute -- "load config" --> YAMLLoader
@@ -76,6 +82,9 @@ flowchart TD
 
     %% Frontend → GitHub API (PAT auth)
     Pages -- "GitHub REST API\n(repo search, user info)" --> GitHubAPI
+    
+    %% KDB spaces loaded via proxy (no direct CORS call)
+    %% Pages call KdbRoute which proxies to CopilotSpacesAPI
 ```
 
 ---

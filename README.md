@@ -1,9 +1,5 @@
 # Web-Spec
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](package.json)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-green)](https://nodejs.org)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](#license)
-
 > AI-powered specification generator for GitHub repositories.
 
 Web-Spec is a dark-themed web application that lets you connect any GitHub repository and run a chained pipeline of AI agents against it — producing structured research, product requirements documents, and technical specifications in a real-time streaming chat interface. Built for developers and product teams who want to accelerate the spec-writing stage of agentic development workflows.
@@ -21,6 +17,7 @@ Web-Spec is a dark-themed web application that lets you connect any GitHub repos
 - [API Reference](#api-reference)
 - [Environment Variables](#environment-variables)
 - [Development](#development)
+- [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -111,7 +108,17 @@ For detailed Mermaid diagrams covering the system overview, agent run sequence, 
 |---|---|---|
 | Node.js | 18+ | [nodejs.org](https://nodejs.org) |
 | GitHub CLI (`gh`) | Latest | [cli.github.com](https://cli.github.com) — must be authenticated (`gh auth login`) |
-| GitHub Personal Access Token | — | Scopes required: `repo`, `read:user` — [create one](https://github.com/settings/tokens/new) |
+| GitHub Personal Access Token | — | See token requirements below — [create one](https://github.com/settings/tokens/new) |
+
+#### PAT Permissions
+
+**Classic token** — check these scopes: `repo`, `read:user`, `copilot`
+
+**Fine-grained token** — select the following:
+- *Account permissions*: **Copilot Editor Chat** → Read-only
+- *Repository permissions*: **Contents** → Read-only, **Metadata** → Read-only (auto-selected)
+
+> Fine-grained tokens must be scoped to your personal account (not just an org) for the Copilot Spaces API to work.
 
 ### Install
 
@@ -205,7 +212,8 @@ agentic-web-spec/
 │       ├── index.ts                # Server entry point
 │       └── routes/
 │           ├── repos.ts            # Repository clone, status, tree endpoints
-│           └── agent.ts            # Agent runner + SSE streaming
+│           ├── agent.ts            # Agent runner + SSE streaming
+│           └── kdb.ts              # KDB spaces proxy endpoint
 └── reference/                      # Reference materials
 ```
 
@@ -245,6 +253,7 @@ All API endpoints are served by the backend on port `3001`.
 | `DELETE` | `/api/repos/remove` | Remove a cloned repository from the work directory |
 | `GET` | `/api/repos/tree` | Return the file tree of a cloned repository |
 | `POST` | `/api/agent/run` | Start an agent session and stream token output via SSE |
+| `GET` | `/api/kdb/spaces` | Proxy endpoint to fetch GitHub Copilot Spaces (eliminates CORS errors) |
 | `GET` | `/health` | Health check — returns `200 OK` |
 
 ---
@@ -282,6 +291,44 @@ The frontend requires no server-side environment variables. The GitHub PAT is st
 1. Create a new YAML file in `backend/agents/` following the pattern of an existing agent file.
 2. Register the agent in `frontend/lib/agents.ts` with its `slug`, display name, and description.
 3. Add the agent to the chain order array in `agents.ts` if it should participate in handoffs.
+
+---
+
+## Testing
+
+There are currently no automated test suites in this project. Verification is done through static analysis and manual end-to-end checks.
+
+### Type Checking
+
+Run the TypeScript compiler in no-emit mode against each package to catch type errors without producing build output:
+
+```bash
+# Frontend
+cd frontend && npx tsc --noEmit
+
+# Backend
+cd backend && npx tsc --noEmit
+```
+
+### Linting
+
+```bash
+# Frontend (ESLint via Next.js)
+cd frontend && npm run lint
+```
+
+### Manual Testing
+
+After starting the app with `npm run dev`, verify the following flows:
+
+| Flow | Steps |
+|---|---|
+| **Auth** | Open settings → enter a GitHub PAT → confirm username appears in the nav |
+| **Repo clone** | Click **Select repo** → search for a public repo → select it → confirm it appears in the repo bar |
+| **Agent run** | Pick any agent → type a prompt → confirm streamed tokens appear in the chat |
+| **Agent handoff** | Complete a Deep Research session → click **Send to PRD Writer** → confirm context is prepopulated in the new session |
+| **KDB attach** | Navigate to `/kdb` → connect a Copilot Space → start an agent session and confirm the space context is included |
+| **Dashboard** | Navigate to `/dashboard` → confirm past sessions and activity events are listed |
 
 ---
 

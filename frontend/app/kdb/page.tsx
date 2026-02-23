@@ -36,8 +36,8 @@ export default function KDBPage() {
     setError("");
 
     try {
-      // Access GitHub MCP to list Copilot Spaces
-      const res = await fetch("https://api.github.com/user/copilot/spaces", {
+      // Access GitHub MCP to list Copilot Spaces via backend proxy
+      const res = await fetch("/api/backend/kdb/spaces", {
         headers: {
           Authorization: `Bearer ${pat}`,
           Accept: "application/vnd.github+json",

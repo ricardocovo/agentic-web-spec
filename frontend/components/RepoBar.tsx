@@ -17,10 +17,10 @@ export function RepoBar() {
 
           {activeRepo ? (
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="text-xs text-text-secondary truncate">
+              <span className="text-xs text-text-secondary truncate font-mono">
                 {activeRepo.fullName}
               </span>
-              <span className="text-xs text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full">
+              <span className="text-xs text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
                 active
               </span>
             </div>

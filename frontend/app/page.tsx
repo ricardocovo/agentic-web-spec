@@ -19,8 +19,9 @@ function AgentCard({ agent, disabled }: { agent: AgentConfig; disabled: boolean 
       className={`group relative flex flex-col h-full p-6 rounded-xl border transition-all duration-200 ${
         disabled
           ? "border-border bg-surface opacity-50 cursor-not-allowed"
-          : `${agent.borderColor} ${agent.bgColor} hover:scale-[1.02] hover:shadow-xl cursor-pointer`
+          : `${agent.borderColor} ${agent.bgColor} hover:-translate-y-1 hover:shadow-glow-cyan cursor-pointer`
       }`}
+      style={!disabled ? { borderTopColor: agent.iconColor, borderTopWidth: 2 } : undefined}
     >
       {/* Icon */}
       <div
@@ -65,12 +66,11 @@ export default function AgentsPage() {
     <div className="max-w-5xl mx-auto">
       {/* Heading */}
       <div className="text-center mb-12 pt-8">
-        <h1 className="text-4xl font-bold mb-3">
-          <span className="text-text-primary">Welcome to </span>
-          <span className="text-text-primary">Web</span>
-          <span className="text-accent">-Spec</span>
+        <h1 className="text-4xl mb-3">
+          <span className="font-display font-black text-text-primary">Welcome to Web</span>
+          <span className="font-display font-black text-accent">-Spec</span>
         </h1>
-        <p className="text-text-secondary text-lg">
+        <p className="text-text-secondary font-body text-lg">
           Select the agent that best fits your needs to start your work session.
         </p>
       </div>
@@ -87,8 +87,10 @@ export default function AgentsPage() {
 
       {/* Agent cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {AGENTS.map((agent) => (
-          <AgentCard key={agent.slug} agent={agent} disabled={disabled} />
+        {AGENTS.map((agent, i) => (
+          <div key={agent.slug} className="animate-card" style={{ animationDelay: `${i * 100}ms` }}>
+            <AgentCard agent={agent} disabled={disabled} />
+          </div>
         ))}
       </div>
     </div>

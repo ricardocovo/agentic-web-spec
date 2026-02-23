@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { reposRouter } from "./routes/repos.js";
 import { agentRouter } from "./routes/agent.js";
+import { kdbRouter } from "./routes/kdb.js";
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 
 app.use("/api/repos", reposRouter);
 app.use("/api/agent", agentRouter);
+app.use("/api/kdb", kdbRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

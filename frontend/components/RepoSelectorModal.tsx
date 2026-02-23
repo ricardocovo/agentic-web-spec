@@ -117,7 +117,7 @@ export function RepoSelectorModal({ onClose }: RepoSelectorModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-surface border border-border rounded-xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col max-h-[80vh]">
+      <div className="bg-surface border border-border/60 rounded-xl w-full max-w-2xl mx-4 shadow-[0_0_60px_rgba(0,207,255,0.08)] flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
           <h2 className="font-semibold text-text-primary">Select Repository</h2>
@@ -140,7 +140,7 @@ export function RepoSelectorModal({ onClose }: RepoSelectorModalProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search repositories..."
-              className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors"
               autoFocus
             />
           </div>
@@ -170,7 +170,7 @@ export function RepoSelectorModal({ onClose }: RepoSelectorModalProps) {
               key={repo.id}
               onClick={() => handleSelect(repo)}
               disabled={!!cloning}
-              className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-colors disabled:opacity-60 disabled:cursor-wait"
+              className="w-full text-left px-4 py-3 hover:bg-surface-2 hover:border-l-2 hover:border-accent border-b border-border/50 last:border-0 transition-all disabled:opacity-60 disabled:cursor-wait"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">

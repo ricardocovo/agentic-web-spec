@@ -40,7 +40,7 @@ function MessageBubble({ msg }: { msg: Message }) {
       <div
         className={`max-w-[80%] px-4 py-3 rounded-xl text-sm leading-relaxed ${
           isUser
-            ? "bg-accent/15 text-text-primary rounded-tr-sm whitespace-pre-wrap"
+            ? "border-l-4 border-accent bg-surface-2 text-text-primary rounded-tr-sm whitespace-pre-wrap"
             : "bg-surface-2 border border-border text-text-primary rounded-tl-sm"
         }`}
       >
@@ -151,7 +151,11 @@ export function ChatInterface({
             <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-surface-2">
               <Loader2 size={14} className="text-text-secondary animate-spin" />
             </div>
-            <div className="px-4 py-3 rounded-xl rounded-tl-sm bg-surface-2 border border-border text-muted text-sm">
+            <div className="px-4 py-3 rounded-xl rounded-tl-sm bg-surface-2 border border-border text-muted text-sm flex items-center gap-2">
+              <span
+                className="inline-block w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: agent.iconColor }}
+              />
               Thinking...
             </div>
           </div>
@@ -189,7 +193,7 @@ export function ChatInterface({
             placeholder={disabled ? "Select a repository to start chatting" : `Message ${agent.shortName}...`}
             disabled={disabled || isStreaming}
             rows={1}
-            className="flex-1 bg-surface-2 border border-border rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-surface-2 border border-border rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ maxHeight: "120px" }}
             onInput={(e) => {
               const el = e.currentTarget;

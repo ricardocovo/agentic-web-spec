@@ -23,12 +23,12 @@ export function Nav() {
 
   return (
     <>
-      <header className="border-b border-border bg-surface sticky top-0 z-50">
+      <header className="border-b border-border bg-gradient-to-r from-surface to-transparent sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-            <span className="text-text-primary">Web</span>
-            <span className="text-accent">-Spec</span>
+          <Link href="/" className="flex items-center text-lg">
+            <span className="font-display font-bold tracking-wider text-text-primary">Web</span>
+            <span className="font-display font-bold tracking-wider text-accent">-Spec</span>
           </Link>
 
           {/* Nav links */}
@@ -37,10 +37,10 @@ export function Nav() {
               <Link
                 key={href}
                 href={href}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
                   isActive(href)
-                    ? "text-text-primary bg-surface-2"
-                    : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
+                    ? "border-b-2 border-accent text-text-primary"
+                    : "text-text-secondary hover:text-text-primary"
                 }`}
               >
                 {label}

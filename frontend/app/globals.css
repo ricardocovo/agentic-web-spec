@@ -1,15 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #111113;
+  --background: #06090f;
 }
 
 body {
   background-color: var(--background);
-  color: #f0f0f5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #e4eeff;
+  font-family: 'Outfit', sans-serif;
+  background-image: radial-gradient(circle, #1e2d52 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-card {
+  animation: fadeSlideUp 0.4s ease forwards;
 }
 
 /* Scrollbar styling */
@@ -18,14 +30,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1a1a1f;
+  background: #06090f;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a32;
+  background: #1e2d52;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a45;
+  background: #44537a;
 }
 
 /* Scoped markdown styles */

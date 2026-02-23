@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Search, FileText, Code } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/lib/context";
@@ -11,6 +11,7 @@ import {
   createSession,
   addMessageToSession,
   addActivity,
+  getSession,
   Message,
   Session,
 } from "@/lib/storage";
@@ -24,6 +25,8 @@ const AGENT_ICONS = {
 export default function AgentPage({ params }: { params: { slug: string } }) {
   const { activeRepo, pat } = useApp();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session");
   const agent = getAgent(params.slug);
   const nextAgent = getNextAgent(params.slug);
 
@@ -41,6 +44,17 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   // Init session
   useEffect(() => {
     if (!agent || !activeRepo) return;
+
+    // Restore existing session from dashboard click
+    if (sessionId) {
+      const existing = getSession(sessionId);
+      if (existing) {
+        setSession(existing);
+        sessionRef.current = existing;
+        setMessages(existing.messages);
+        return;
+      }
+    }
 
     // Check for pre-loaded context from handoff (stored in sessionStorage).
     // NOTE: We intentionally do NOT remove the key here — React Strict Mode
@@ -70,7 +84,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     setMessages(newSession.messages);
   // activeRepo.fullName is intentionally included so the session resets when the repo switches
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.slug, activeRepo?.fullName]);
+  }, [params.slug, activeRepo?.fullName, sessionId]);
 
   const handleSend = useCallback(
     async (content: string) => {

@@ -49,7 +49,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <LayoutDashboard size={22} className="text-accent" />
-        <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
+        <h1 className="text-2xl font-display font-bold text-text-primary">Dashboard</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -85,8 +85,8 @@ export default function DashboardPage() {
                 return (
                   <Link
                     key={session.id}
-                    href={`/agents/${session.agentSlug}`}
-                    className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface hover:bg-surface-2 transition-colors group"
+                    href={`/agents/${session.agentSlug}?session=${session.id}`}
+                    className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface hover:bg-surface-2 hover:border-l-2 hover:border-accent transition-all group"
                   >
                     {/* Agent icon */}
                     <div
@@ -133,7 +133,7 @@ export default function DashboardPage() {
               <p className="text-muted text-xs">No activity yet</p>
             </div>
           ) : (
-            <div className="border border-border rounded-xl bg-surface divide-y divide-border/50 overflow-hidden">
+            <div className="border border-border rounded-xl bg-surface divide-y divide-border/50 overflow-hidden font-mono text-xs">
               {activity.slice(0, 30).map((event) => (
                 <div key={event.id} className="px-4 py-3">
                   <div className="flex items-start gap-2">

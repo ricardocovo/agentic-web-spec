@@ -55,7 +55,7 @@ export function PATModal({ onClose }: PATModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-surface border border-border rounded-xl w-full max-w-md mx-4 shadow-2xl">
+      <div className="bg-surface border border-border/60 rounded-xl w-full max-w-md mx-4 shadow-[0_0_60px_rgba(0,207,255,0.08)]">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export function PATModal({ onClose }: PATModalProps) {
                 onChange={(e) => setNewPat(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleVerify()}
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+                className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors"
                 autoFocus
               />
               <p className="text-xs text-muted">
@@ -161,7 +161,7 @@ export function PATModal({ onClose }: PATModalProps) {
               <button
                 onClick={handleVerify}
                 disabled={!newPat.trim() || status === "loading"}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background rounded-lg transition-colors"
               >
                 {status === "loading" && <Loader2 size={14} className="animate-spin" />}
                 Verify & Save

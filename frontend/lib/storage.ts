@@ -95,14 +95,18 @@ export function clearActiveRepo(): void {
 
 // --- Sessions ---
 
-export function getSessions(): Session[] {
+function getAllSessions(): Session[] {
   if (!isBrowser()) return [];
   const raw = localStorage.getItem(SESSIONS_KEY);
   return raw ? (JSON.parse(raw) as Session[]) : [];
 }
 
+export function getSessions(): Session[] {
+  return getAllSessions().filter((s) => s.messages.length > 0);
+}
+
 export function getSession(id: string): Session | undefined {
-  return getSessions().find((s) => s.id === id);
+  return getAllSessions().find((s) => s.id === id);
 }
 
 export function saveSession(session: Session): void {
