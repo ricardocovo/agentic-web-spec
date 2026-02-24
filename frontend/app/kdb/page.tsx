@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen, ExternalLink, Loader2, AlertCircle, Check } from "lucide-react";
+import { BookOpen, ExternalLink, Loader2, AlertCircle } from "lucide-react";
 import { useApp } from "@/lib/context";
 
 interface CopilotSpace {
@@ -11,20 +11,12 @@ interface CopilotSpace {
   url?: string;
 }
 
-const SELECTED_SPACE_KEY = "web_spec_selected_space";
-
 export default function KDBPage() {
   const { pat } = useApp();
   const [spaces, setSpaces] = useState<CopilotSpace[]>([]);
   const [loading, setLoading] = useState(false);
   const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(SELECTED_SPACE_KEY);
-    if (saved) setSelectedSpace(saved);
-  }, []);
 
   useEffect(() => {
     if (!pat) return;
@@ -67,16 +59,6 @@ export default function KDBPage() {
     }
   }
 
-  function toggleSpace(key: string) {
-    if (selectedSpace === key) {
-      setSelectedSpace(null);
-      localStorage.removeItem(SELECTED_SPACE_KEY);
-    } else {
-      setSelectedSpace(key);
-      localStorage.setItem(SELECTED_SPACE_KEY, key);
-    }
-  }
-
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
@@ -86,7 +68,7 @@ export default function KDBPage() {
           <h1 className="text-2xl font-bold text-text-primary">Knowledge Base</h1>
         </div>
         <p className="text-text-secondary text-sm">
-          Connect a Copilot Space as context for your agent sessions.
+          Your Copilot Spaces.
         </p>
       </div>
 
@@ -153,31 +135,20 @@ export default function KDBPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {spaces.map((space) => {
             const key = `${space.owner}/${space.name}`;
-            const isSelected = selectedSpace === key;
 
             return (
-              <button
+              <div
                 key={key}
-                onClick={() => toggleSpace(key)}
-                className={`text-left p-4 rounded-xl border transition-all ${
-                  isSelected
-                    ? "border-accent bg-accent/10"
-                    : "border-border bg-surface hover:border-border/80 hover:bg-surface-2"
-                }`}
+                className="text-left p-4 rounded-xl border border-border bg-surface"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-text-primary text-sm truncate">
-                      {space.owner}/{space.name}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-text-primary text-sm truncate">
+                    {space.owner}/{space.name}
+                  </p>
+                  {space.description && (
+                    <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                      {space.description}
                     </p>
-                    {space.description && (
-                      <p className="text-xs text-text-secondary mt-1 line-clamp-2">
-                        {space.description}
-                      </p>
-                    )}
-                  </div>
-                  {isSelected && (
-                    <Check size={14} className="text-accent flex-shrink-0 mt-0.5" />
                   )}
                 </div>
 
@@ -186,24 +157,15 @@ export default function KDBPage() {
                     href={space.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-xs text-muted hover:text-text-secondary mt-2 transition-colors"
                   >
                     <ExternalLink size={10} />
                     View Space
                   </a>
                 )}
-              </button>
+              </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Selected space status */}
-      {selectedSpace && (
-        <div className="mt-6 p-3 rounded-lg border border-accent/20 bg-accent/5 text-xs text-text-secondary">
-          <span className="text-accent font-medium">{selectedSpace}</span> will be included as
-          context in your next agent session.
         </div>
       )}
     </div>
