@@ -4,7 +4,7 @@ description: >
   Writes a complete Product Requirements Document (PRD) based on provided
   context and research. Generates structured PRDs with goals, user stories,
   acceptance criteria, and technical requirements ready for development.
-model: claude-sonnet-4.6
+model: o4-mini
 tools:
   - grep
   - glob

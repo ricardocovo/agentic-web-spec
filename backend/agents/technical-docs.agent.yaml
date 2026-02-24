@@ -4,7 +4,7 @@ description: >
   Creates detailed technical specifications and implementation task breakdowns
   ready for development by agents or developers. Produces actionable tasks
   with clear context, files to change, and implementation guidance.
-model: claude-sonnet-4.6
+model: o4-mini
 tools:
   - grep
   - glob

@@ -21,6 +21,7 @@ interface ChatInterfaceProps {
 
 function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
+  const [reasoningOpen, setReasoningOpen] = useState(false);
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
@@ -39,20 +40,42 @@ function MessageBubble({ msg }: { msg: Message }) {
 
       {/* Bubble */}
       <div
-        className={`max-w-[80%] px-4 py-3 rounded-xl text-sm leading-relaxed ${
+        className={`max-w-[80%] rounded-xl text-sm leading-relaxed ${
           isUser
-            ? "border-l-4 border-accent bg-surface-2 text-text-primary rounded-tr-sm whitespace-pre-wrap"
+            ? "px-4 py-3 border-l-4 border-accent bg-surface-2 text-text-primary rounded-tr-sm whitespace-pre-wrap"
             : "bg-surface-2 border border-border text-text-primary rounded-tl-sm"
         }`}
       >
         {isUser ? (
           msg.content
         ) : (
-          <div className="md-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {msg.content}
-            </ReactMarkdown>
-          </div>
+          <>
+            {msg.reasoning && (
+              <div className="border-b border-border">
+                <button
+                  onClick={() => setReasoningOpen((o) => !o)}
+                  aria-expanded={reasoningOpen}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <Brain size={12} className="flex-shrink-0" />
+                  <span className="flex-1 text-left font-medium">
+                    Thinking · {msg.reasoning.length} chars
+                  </span>
+                  {reasoningOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+                {reasoningOpen && (
+                  <div className="max-h-64 overflow-y-auto px-4 pb-3 font-mono text-xs text-text-secondary whitespace-pre-wrap border-t border-border pt-2">
+                    {msg.reasoning}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="md-content px-4 py-3">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {msg.content}
+              </ReactMarkdown>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -159,60 +182,35 @@ export function ChatInterface({
           <MessageBubble key={msg.id} msg={msg} />
         ))}
 
+        {/* Reasoning block — shown during streaming whenever reasoning content exists */}
+        {isStreaming && streamingReasoning && (
+          <div className="flex gap-3">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-surface-2">
+              <Brain size={14} className="text-text-secondary" />
+            </div>
+            <div className="flex-1 max-w-[80%] rounded-xl rounded-tl-sm bg-surface-2 border border-border overflow-hidden">
+              <button
+                onClick={() => setIsReasoningOpen((o) => !o)}
+                aria-expanded={isReasoningOpen}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <Brain size={12} className="flex-shrink-0" />
+                <span className="flex-1 text-left font-medium">
+                  Thinking · {streamingReasoning.length} chars
+                </span>
+                {isReasoningOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+              {isReasoningOpen && (
+                <div className="max-h-64 overflow-y-auto px-4 pb-3 font-mono text-xs text-text-secondary whitespace-pre-wrap border-t border-border pt-2">
+                  {streamingReasoning}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {isStreaming && streamingContent && (
           <StreamingBubble content={streamingContent} agentColor={agent.iconColor} />
-        )}
-
-        {isStreaming && !streamingContent && streamingReasoning && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-surface-2">
-              <Brain size={14} className="text-text-secondary" />
-            </div>
-            <div className="flex-1 max-w-[80%] rounded-xl rounded-tl-sm bg-surface-2 border border-border overflow-hidden">
-              <button
-                onClick={() => setIsReasoningOpen((o) => !o)}
-                aria-expanded={isReasoningOpen}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
-              >
-                <Brain size={12} className="flex-shrink-0" />
-                <span className="flex-1 text-left font-medium">
-                  Thinking · {streamingReasoning.length} chars
-                </span>
-                {isReasoningOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-              {isReasoningOpen && (
-                <div className="max-h-64 overflow-y-auto px-4 pb-3 font-mono text-xs text-text-secondary whitespace-pre-wrap border-t border-border pt-2">
-                  {streamingReasoning}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {isStreaming && streamingContent && streamingReasoning && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-surface-2">
-              <Brain size={14} className="text-text-secondary" />
-            </div>
-            <div className="flex-1 max-w-[80%] rounded-xl rounded-tl-sm bg-surface-2 border border-border overflow-hidden">
-              <button
-                onClick={() => setIsReasoningOpen((o) => !o)}
-                aria-expanded={isReasoningOpen}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
-              >
-                <Brain size={12} className="flex-shrink-0" />
-                <span className="flex-1 text-left font-medium">
-                  Thinking · {streamingReasoning.length} chars
-                </span>
-                {isReasoningOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-              {isReasoningOpen && (
-                <div className="max-h-64 overflow-y-auto px-4 pb-3 font-mono text-xs text-text-secondary whitespace-pre-wrap border-t border-border pt-2">
-                  {streamingReasoning}
-                </div>
-              )}
-            </div>
-          </div>
         )}
 
         {isStreaming && !streamingContent && !streamingReasoning && (

@@ -4,7 +4,7 @@ description: >
   Performs deep research on a codebase and topic. Analyzes code structure,
   patterns, and provides structured findings with insights and relevant context.
   Use before writing a PRD or technical spec.
-model: claude-sonnet-4.6
+model: o4-mini
 tools:
   - grep
   - glob
