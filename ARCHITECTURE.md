@@ -41,7 +41,7 @@ flowchart TD
 
     subgraph GitHub["GitHub"]
         GitHubAPI["GitHub REST API\nrepo search · user info"]
-        CopilotSpacesMCP["GitHub MCP Server\napi.githubcopilot.com/mcp/x/copilot_spaces\nlist_copilot_spaces · get_copilot_space"]
+        CopilotSpacesMCP["GitHub MCP Server\napi.githubcopilot.com/mcp/readonly\nX-MCP-Toolsets: copilot_spaces"]
         GitRemote["github.com\ngit clone over HTTPS + PAT"]
         CopilotAPI["GitHub Copilot API\ngpt-4.1 model\ntool execution host"]
     end
@@ -189,7 +189,7 @@ All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, 
 
 ## Copilot Spaces via MCP
 
-The Knowledge Base page lists the user's Copilot Spaces by creating a short-lived `CopilotClient` session configured with the `copilot_spaces` MCP server (`https://api.githubcopilot.com/mcp/x/copilot_spaces`). The session prompts the LLM to call `list_copilot_spaces` and return structured JSON. This takes 10-30 seconds due to the LLM round-trip.
+The Knowledge Base page lists the user's Copilot Spaces by creating a short-lived `CopilotClient` session configured with the GitHub MCP server (`https://api.githubcopilot.com/mcp/readonly`) and the `copilot_spaces` toolset (via the `X-MCP-Toolsets` header). The environment variables `COPILOT_MCP_COPILOT_SPACES_ENABLED=true` and `GITHUB_PERSONAL_ACCESS_TOKEN` must be set on the CopilotClient's env to enable the built-in MCP space tools (`github-list_copilot_spaces`, `github-get_copilot_space`). This takes 10-30 seconds due to the LLM round-trip.
 
 When a user selects a space, the `spaceRef` (`owner/name`) is stored in `localStorage` and included in subsequent `POST /api/agent/run` requests. The backend conditionally attaches the `copilot_spaces` MCP server to the agent session and appends a system prompt instruction to call `get_copilot_space`, giving the agent access to the curated space context.
 

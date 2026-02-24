@@ -74,9 +74,21 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
 
   let client: CopilotClient | null = null;
 
+  // Extract PAT from Authorization header for MCP server auth
+  const authHeader = req.headers.authorization;
+  const pat = authHeader ? authHeader.replace(/^Bearer\s+/i, "") : undefined;
+
   // Create client and session BEFORE opening SSE stream so errors return proper HTTP responses
   try {
-    client = new CopilotClient({ cwd: repoPath });
+    const clientOpts: Record<string, unknown> = { cwd: repoPath };
+    if (spaceRef && pat) {
+      clientOpts.env = {
+        ...process.env,
+        COPILOT_MCP_COPILOT_SPACES_ENABLED: "true",
+        GITHUB_PERSONAL_ACCESS_TOKEN: pat,
+      };
+    }
+    client = new CopilotClient(clientOpts);
     await client.start();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to start Copilot client";
@@ -87,7 +99,7 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
 
   let session: Awaited<ReturnType<CopilotClient["createSession"]>>;
   try {
-    const MCP_SPACES_URL = "https://api.githubcopilot.com/mcp/x/copilot_spaces";
+    const MCP_URL = "https://api.githubcopilot.com/mcp/readonly";
 
     session = await client.createSession({
       model: agentConfig.model ?? "gpt-4.1",
@@ -95,12 +107,16 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
       workingDirectory: repoPath,
       systemMessage: { content: systemPrompt },
       availableTools: agentConfig.tools?.includes("*") ? undefined : agentConfig.tools,
-      ...(spaceRef
+      ...(spaceRef && pat
         ? {
             mcpServers: {
-              copilot_spaces: {
+              github: {
                 type: "http" as const,
-                url: MCP_SPACES_URL,
+                url: MCP_URL,
+                headers: {
+                  Authorization: `Bearer ${pat}`,
+                  "X-MCP-Toolsets": "copilot_spaces",
+                },
                 tools: ["*"],
               },
             },

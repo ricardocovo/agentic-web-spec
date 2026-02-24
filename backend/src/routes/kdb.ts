@@ -3,7 +3,7 @@ import { CopilotClient } from "@github/copilot-sdk";
 
 export const kdbRouter = Router();
 
-const MCP_SPACES_URL = "https://api.githubcopilot.com/mcp/x/copilot_spaces";
+const MCP_URL = "https://api.githubcopilot.com/mcp/readonly";
 
 /** Auto-approve MCP permission requests; deny all others. */
 function mcpPermissionHandler(req: { kind: string }) {
@@ -47,11 +47,21 @@ kdbRouter.get("/spaces", async (req: Request, res: Response) => {
     return;
   }
 
+  // Disable ETag caching — each listing is a fresh MCP query
+  res.set("Cache-Control", "no-store");
+
   const pat = authHeader.replace(/^Bearer\s+/i, "");
   let client: CopilotClient | null = null;
 
   try {
-    client = new CopilotClient({ githubToken: pat });
+    client = new CopilotClient({
+      githubToken: pat,
+      env: {
+        ...process.env,
+        COPILOT_MCP_COPILOT_SPACES_ENABLED: "true",
+        GITHUB_PERSONAL_ACCESS_TOKEN: pat,
+      },
+    });
     await client.start();
 
     const session = await client.createSession({
@@ -60,9 +70,13 @@ kdbRouter.get("/spaces", async (req: Request, res: Response) => {
         content: "You are a JSON API. Only output valid JSON arrays. Never use markdown.",
       },
       mcpServers: {
-        copilot_spaces: {
+        github: {
           type: "http",
-          url: MCP_SPACES_URL,
+          url: MCP_URL,
+          headers: {
+            Authorization: `Bearer ${pat}`,
+            "X-MCP-Toolsets": "copilot_spaces",
+          },
           tools: ["*"],
         },
       },
@@ -72,9 +86,9 @@ kdbRouter.get("/spaces", async (req: Request, res: Response) => {
     const response = await session.sendAndWait(
       {
         prompt:
-          "List all my Copilot Spaces. Return ONLY a JSON array where each element has fields: name, owner, description. No markdown, no explanation.",
+          "Use the list_copilot_spaces tool to list all my Copilot Spaces. Return ONLY a JSON array where each element has fields: name, owner, description. No markdown, no explanation.",
       },
-      60_000,
+      90_000,
     );
 
     const content = response?.data?.content ?? "";

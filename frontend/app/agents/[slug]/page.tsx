@@ -127,7 +127,10 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
 
         const res = await fetch("/api/agent/run", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(spaceRef && pat ? { Authorization: `Bearer ${pat}` } : {}),
+          },
           body: JSON.stringify({
             agentSlug: params.slug,
             prompt: content,
