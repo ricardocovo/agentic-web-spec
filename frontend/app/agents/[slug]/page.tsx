@@ -123,7 +123,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
       sessionStorage.removeItem(`web_spec_handoff_${params.slug}`);
 
       try {
-        const res = await fetch("/api/backend/agent/run", {
+        const res = await fetch("/api/agent/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -142,50 +142,66 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let accumulated = "";
+        let accumulatedReasoning = "";
         let currentEvent = "";
+        let lineBuffer = "";
+
+        const processLine = (line: string) => {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            if (currentEvent === "chunk") {
+              try {
+                const data = JSON.parse(line.slice(6)) as string;
+                accumulated += data;
+                setStreamingContent(accumulated);
+              } catch {
+                // ignore parse errors
+              }
+            } else if (currentEvent === "reasoning") {
+              try {
+                const data = JSON.parse(line.slice(6)) as string;
+                accumulatedReasoning += data;
+                setStreamingReasoning(accumulatedReasoning);
+              } catch {
+                // ignore parse errors
+              }
+            } else if (currentEvent === "error") {
+              try {
+                const msg = JSON.parse(line.slice(6)) as string;
+                throw new Error(msg);
+              } catch (e) {
+                if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
+              }
+            }
+          }
+        };
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           const text = decoder.decode(value, { stream: true });
-          const lines = text.split("\n");
+          const combined = lineBuffer + text;
+          const lines = combined.split("\n");
 
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              currentEvent = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              if (currentEvent === "chunk") {
-                try {
-                  const data = JSON.parse(line.slice(6)) as string;
-                  accumulated += data;
-                  setStreamingContent(accumulated);
-                } catch {
-                  // ignore parse errors
-                }
-              } else if (currentEvent === "reasoning") {
-                try {
-                  const data = JSON.parse(line.slice(6)) as string;
-                  setStreamingReasoning((prev) => prev + data);
-                } catch {
-                  // ignore parse errors
-                }
-              } else if (currentEvent === "error") {
-                try {
-                  const msg = JSON.parse(line.slice(6)) as string;
-                  throw new Error(msg);
-                } catch (e) {
-                  if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
-                }
-              }
-            }
+          // Process all complete lines; keep last (potentially partial) segment in buffer
+          for (let i = 0; i < lines.length - 1; i++) {
+            processLine(lines[i]);
           }
+          lineBuffer = lines[lines.length - 1];
+        }
+
+        // Process any remaining partial line in the buffer
+        if (lineBuffer) {
+          processLine(lineBuffer);
         }
 
         // Save assistant response
         const finalSession = addMessageToSession(session.id, {
           role: "assistant",
           content: accumulated || "⚠️ No response received. Check that the Copilot CLI is installed and authenticated (`copilot --version`).",
+          reasoning: accumulatedReasoning || undefined,
         });
 
         if (finalSession) {

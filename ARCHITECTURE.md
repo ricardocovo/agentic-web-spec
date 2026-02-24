@@ -167,6 +167,7 @@ All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, 
 | Backend server | Express 4 + TypeScript | HTTP routing, CORS, request validation |
 | Repo management | `child_process.execSync` + `git` | Shallow clone, file tree, removal |
 | Agent execution | `@github/copilot-sdk` `CopilotClient` | Session lifecycle, prompt dispatch, tool delegation |
+| SSE proxy | Next.js Route Handler (`app/api/agent/run/route.ts`) | Bypasses rewrite-proxy buffering; pipes backend `ReadableStream` directly to client |
 | Streaming transport | Server-Sent Events (SSE) | Token-by-token delivery from Copilot API to browser |
 | Agent config | YAML files (`agents/*.agent.yaml`) | Model, tools, system prompt per agent |
 | Model backend | GitHub Copilot API (gpt-4.1) | LLM inference + tool call execution against the repo |
