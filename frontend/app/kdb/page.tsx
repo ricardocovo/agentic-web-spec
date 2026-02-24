@@ -1,30 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BookOpen, ExternalLink, Loader2, AlertCircle } from "lucide-react";
 import { useApp } from "@/lib/context";
-
-interface CopilotSpace {
-  name: string;
-  owner: string;
-  description?: string;
-  url?: string;
-}
+import {
+  CopilotSpace,
+  getCachedSpaces,
+  fetchSpacesWithCache,
+} from "@/lib/spaces-cache";
 
 export default function KDBPage() {
-  const { pat } = useApp();
+  const { hydrated, pat } = useApp();
   const [spaces, setSpaces] = useState<CopilotSpace[]>([]);
   const [loading, setLoading] = useState(false);
   const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const loadSpaces = useCallback(async () => {
     if (!pat) return;
-    loadSpaces();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pat]);
-
-  async function loadSpaces() {
     setLoading(true);
     setSlowLoading(false);
     setError("");
@@ -32,24 +25,8 @@ export default function KDBPage() {
     const slowTimer = setTimeout(() => setSlowLoading(true), 5000);
 
     try {
-      // Access GitHub MCP to list Copilot Spaces via backend proxy
-      const res = await fetch("/api/backend/kdb/spaces", {
-        headers: {
-          Authorization: `Bearer ${pat}`,
-        },
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errMessage =
-          (data as { error?: string })?.error ?? `Error: ${res.status}`;
-        setError(errMessage);
-        return;
-      }
-
-      const typed = data as CopilotSpace[] | { spaces: CopilotSpace[] };
-      setSpaces(Array.isArray(typed) ? typed : typed.spaces ?? []);
+      const result = await fetchSpacesWithCache(pat);
+      setSpaces(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Copilot Spaces");
     } finally {
@@ -57,7 +34,15 @@ export default function KDBPage() {
       setSlowLoading(false);
       setLoading(false);
     }
-  }
+  }, [pat]);
+
+  useEffect(() => {
+    if (!pat) return;
+    // Show cached data instantly while fetching
+    const cached = getCachedSpaces();
+    if (cached) setSpaces(cached);
+    loadSpaces();
+  }, [pat, loadSpaces]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -73,7 +58,7 @@ export default function KDBPage() {
       </div>
 
       {/* No PAT */}
-      {!pat && (
+      {hydrated && !pat && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/10">
           <AlertCircle size={16} className="text-amber-400 flex-shrink-0" />
           <p className="text-sm text-amber-300">

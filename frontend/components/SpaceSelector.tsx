@@ -3,13 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { BookOpen, Check, Loader2, X } from "lucide-react";
 import { useApp } from "@/lib/context";
-
-interface CopilotSpace {
-  name: string;
-  owner: string;
-  description?: string;
-  url?: string;
-}
+import {
+  CopilotSpace,
+  getCachedSpaces,
+  fetchSpacesWithCache,
+} from "@/lib/spaces-cache";
 
 interface SpaceSelectorProps {
   onSelectionChange: (selectedSpaces: string[]) => void;
@@ -34,13 +32,8 @@ export function SpaceSelector({ onSelectionChange, disabled }: SpaceSelectorProp
     setSlowLoad(false);
     const timer = setTimeout(() => setSlowLoad(true), 5000);
     try {
-      const res = await fetch("/api/backend/kdb/spaces", {
-        headers: { Authorization: `Bearer ${pat}` },
-      });
-      if (!res.ok) throw new Error(`Failed to fetch spaces (${res.status})`);
-      const data = await res.json();
-      const typed = data as CopilotSpace[] | { spaces: CopilotSpace[] };
-      setSpaces(Array.isArray(typed) ? typed : typed.spaces ?? []);
+      const result = await fetchSpacesWithCache(pat);
+      setSpaces(result);
       setHasFetched(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to fetch spaces");
@@ -55,7 +48,15 @@ export function SpaceSelector({ onSelectionChange, disabled }: SpaceSelectorProp
     if (disabled) return;
     const next = !open;
     setOpen(next);
-    if (next && !hasFetched) fetchSpaces();
+    if (next && !hasFetched) {
+      // Show cached data instantly if available
+      const cached = getCachedSpaces();
+      if (cached) {
+        setSpaces(cached);
+        setHasFetched(true);
+      }
+      fetchSpaces();
+    }
   }, [disabled, open, hasFetched, fetchSpaces]);
 
   const toggleSpace = useCallback(
@@ -93,7 +94,7 @@ export function SpaceSelector({ onSelectionChange, disabled }: SpaceSelectorProp
       <button
         type="button"
         onClick={handleOpen}
-        className={`w-10 h-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors ${
+        className={`relative w-10 h-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors ${
           disabled ? "opacity-40 cursor-not-allowed" : ""
         }`}
       >

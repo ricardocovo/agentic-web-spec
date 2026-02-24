@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Search, GitFork, Star, Loader2, Lock, Globe } from "lucide-react";
 import { useApp } from "@/lib/context";
 import { ActiveRepo, clearAllRepoContext } from "@/lib/storage";
+import { getCachedRepos, setCachedRepos } from "@/lib/repo-cache";
 
 interface GitHubRepo {
   id: number;
@@ -29,10 +30,21 @@ export function RepoSelectorModal({ onClose }: RepoSelectorModalProps) {
   const [loading, setLoading] = useState(false);
   const [cloning, setCloningRepo] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const fetchIdRef = useRef(0);
 
   const searchRepos = useCallback(
     async (q: string) => {
-      if (!pat) return;
+      if (!pat || !username) return;
+
+      // Return cached results immediately if available
+      const cached = getCachedRepos(q, username);
+      if (cached) {
+        setRepos(cached);
+        setLoading(false);
+        return;
+      }
+
+      const id = ++fetchIdRef.current;
       setLoading(true);
       setError("");
 
@@ -46,21 +58,33 @@ export function RepoSelectorModal({ onClose }: RepoSelectorModalProps) {
         });
 
         if (!res.ok) throw new Error("Failed to fetch repositories");
+        if (id !== fetchIdRef.current) return; // stale request
 
         const data = await res.json();
-        setRepos(q ? (data as { items: GitHubRepo[] }).items : (data as GitHubRepo[]));
+        const results: GitHubRepo[] = q ? (data as { items: GitHubRepo[] }).items : (data as GitHubRepo[]);
+        setCachedRepos(q, username, results);
+        setRepos(results);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Search failed");
+        if (id === fetchIdRef.current) {
+          setError(err instanceof Error ? err.message : "Search failed");
+        }
       } finally {
-        setLoading(false);
+        if (id === fetchIdRef.current) {
+          setLoading(false);
+        }
       }
     },
     [pat, username]
   );
 
+  // On mount, show cached default list instantly or fetch
   useEffect(() => {
+    if (username) {
+      const cached = getCachedRepos("", username);
+      if (cached) setRepos(cached);
+    }
     searchRepos("");
-  }, [searchRepos]);
+  }, [searchRepos, username]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

@@ -73,7 +73,7 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
     "\n\nWhen reasoning through a problem before answering, enclose your internal thinking in <think>...</think> tags at the very beginning of your response. Your answer must follow after the closing </think> tag with no extra preamble.";
 
   const spaceInstruction = spaceRefs.length > 0
-    ? `\n\nYou have access to these Copilot Spaces: ${spaceRefs.map(s => `"${s}"`).join(", ")}. Use the get_copilot_space tool for each space to retrieve its context and incorporate it into your analysis.`
+    ? `\n\nYou have access to these Copilot Spaces: ${spaceRefs.map(s => `"${s}"`).join(", ")}. Use the github-get_copilot_space tool for each space to retrieve its context and incorporate it into your analysis.`
     : "";
 
   const systemPrompt = (context
@@ -114,7 +114,11 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
       streaming: true,
       workingDirectory: repoPath,
       systemMessage: { content: systemPrompt },
-      availableTools: agentConfig.tools?.includes("*") ? undefined : agentConfig.tools,
+      availableTools: agentConfig.tools?.includes("*")
+        ? undefined
+        : spaceRefs.length > 0 && pat
+          ? [...(agentConfig.tools ?? []), "github-get_copilot_space", "github-list_copilot_spaces"]
+          : agentConfig.tools,
       ...(spaceRefs.length > 0 && pat
         ? {
             mcpServers: {
@@ -125,12 +129,11 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
                   Authorization: `Bearer ${pat}`,
                   "X-MCP-Toolsets": "copilot_spaces",
                 },
-                tools: ["*"],
+                tools: ["get_copilot_space", "list_copilot_spaces"],
               },
             },
-            onPermissionRequest: (req: { kind: string }) => {
-              if (req.kind === "mcp") return { kind: "approved" as const };
-              return { kind: "denied-by-rules" as const };
+            onPermissionRequest: () => {
+              return { kind: "approved" as const };
             },
           }
         : {}),

@@ -59,7 +59,7 @@ function AgentCard({ agent, disabled }: { agent: AgentConfig; disabled: boolean 
 }
 
 export default function AgentsPage() {
-  const { activeRepo, pat } = useApp();
+  const { hydrated, activeRepo, pat } = useApp();
   const disabled = !pat || !activeRepo;
 
   return (
@@ -76,7 +76,7 @@ export default function AgentsPage() {
       </div>
 
       {/* No PAT / no repo warning */}
-      {disabled && (
+      {hydrated && disabled && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 mb-8 max-w-xl mx-auto">
           <AlertCircle size={16} className="text-amber-400 flex-shrink-0" />
           <p className="text-sm text-amber-300">

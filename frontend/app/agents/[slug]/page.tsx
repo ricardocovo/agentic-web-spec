@@ -233,7 +233,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         setStreamingReasoning("");
       }
     },
-    [session, activeRepo, params.slug, agent]
+    [session, activeRepo, params.slug, agent, pat]
   );
 
   function handleHandoff() {

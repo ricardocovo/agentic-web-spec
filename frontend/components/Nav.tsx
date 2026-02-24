@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
+import { Settings, Bot, Database, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import { PATModal } from "@/components/PATModal";
 
 const NAV_LINKS = [
-  { href: "/", label: "Agents" },
-  { href: "/kdb", label: "KDB" },
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/", label: "Agents", icon: Bot },
+  { href: "/kdb", label: "KDB", icon: Database },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 
 export function Nav() {
@@ -33,16 +33,17 @@ export function Nav() {
 
           {/* Nav links */}
           <nav className="flex items-center gap-1">
-            {NAV_LINKS.map(({ href, label }) => (
+            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1.5 ${
                   isActive(href)
                     ? "border-b-2 border-accent text-text-primary"
                     : "text-text-secondary hover:text-text-primary"
                 }`}
               >
+                <Icon size={15} />
                 {label}
               </Link>
             ))}

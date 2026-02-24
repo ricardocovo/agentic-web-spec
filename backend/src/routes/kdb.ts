@@ -86,7 +86,7 @@ kdbRouter.get("/spaces", async (req: Request, res: Response) => {
     const response = await session.sendAndWait(
       {
         prompt:
-          "Use the list_copilot_spaces tool to list all my Copilot Spaces. Return ONLY a JSON array where each element has fields: name, owner, description. No markdown, no explanation.",
+          "Use the github-list_copilot_spaces tool to list all my Copilot Spaces. Return ONLY a JSON array where each element has fields: name, owner, description. No markdown, no explanation.",
       },
       90_000,
     );

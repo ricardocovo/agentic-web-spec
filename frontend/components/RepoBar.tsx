@@ -11,8 +11,8 @@ export function RepoBar() {
 
   return (
     <>
-      <div className="border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 h-9 flex items-center gap-3">
+      <div className="border-b border-border bg-background/80 backdrop-blur-sm h-9 flex-shrink-0 sticky top-14 z-40">
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-3">
           <FolderGit2 size={14} className="text-muted flex-shrink-0" />
 
           {activeRepo ? (

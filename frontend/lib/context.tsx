@@ -12,8 +12,11 @@ import {
   getUsername,
   saveUsername,
 } from "@/lib/storage";
+import { clearRepoCache } from "@/lib/repo-cache";
+import { clearSpacesCache } from "@/lib/spaces-cache";
 
 interface AppContextValue {
+  hydrated: boolean;
   pat: string | null;
   username: string | null;
   activeRepo: ActiveRepo | null;
@@ -29,11 +32,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pat, setPATState] = useState<string | null>(null);
   const [username, setUsernameState] = useState<string | null>(null);
   const [activeRepo, setActiveRepoState] = useState<ActiveRepo | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setPATState(getPat());
     setUsernameState(getUsername());
     setActiveRepoState(getActiveRepo());
+    setHydrated(true);
   }, []);
 
   function setPat(newPat: string, newUsername: string) {
@@ -46,6 +51,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   function clearAuth() {
     clearPat();
     clearActiveRepo();
+    clearRepoCache();
+    clearSpacesCache();
     setPATState(null);
     setUsernameState(null);
     setActiveRepoState(null);
@@ -64,6 +71,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
+        hydrated,
         pat,
         username,
         activeRepo,
