@@ -37,13 +37,21 @@ function loadAgentConfig(slug: string): AgentFileConfig | null {
 
 // POST /api/agent/run  (SSE streaming)
 agentRouter.post("/run", async (req: Request, res: Response) => {
-  const { agentSlug, prompt, repoPath, context, spaceRef } = req.body as {
+  const { agentSlug, prompt, repoPath, context, spaceRef, spaceRefs: rawSpaceRefs } = req.body as {
     agentSlug: string;
     prompt: string;
     repoPath: string;
     context?: string;
     spaceRef?: string;
+    spaceRefs?: string[];
   };
+
+  // Normalize: prefer spaceRefs array; fall back to wrapping legacy spaceRef
+  const spaceRefs: string[] = rawSpaceRefs && rawSpaceRefs.length > 0
+    ? rawSpaceRefs
+    : spaceRef
+      ? [spaceRef]
+      : [];
 
   if (!agentSlug || !prompt || !repoPath) {
     res.status(400).json({ error: "agentSlug, prompt, and repoPath are required" });
@@ -64,8 +72,8 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
   const THINK_GUIDANCE =
     "\n\nWhen reasoning through a problem before answering, enclose your internal thinking in <think>...</think> tags at the very beginning of your response. Your answer must follow after the closing </think> tag with no extra preamble.";
 
-  const spaceInstruction = spaceRef
-    ? `\n\nYou have access to a Copilot Space: "${spaceRef}". Use the get_copilot_space tool to retrieve its context and incorporate it into your analysis.`
+  const spaceInstruction = spaceRefs.length > 0
+    ? `\n\nYou have access to these Copilot Spaces: ${spaceRefs.map(s => `"${s}"`).join(", ")}. Use the get_copilot_space tool for each space to retrieve its context and incorporate it into your analysis.`
     : "";
 
   const systemPrompt = (context
@@ -81,7 +89,7 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
   // Create client and session BEFORE opening SSE stream so errors return proper HTTP responses
   try {
     const clientOpts: Record<string, unknown> = { cwd: repoPath };
-    if (spaceRef && pat) {
+    if (spaceRefs.length > 0 && pat) {
       clientOpts.env = {
         ...process.env,
         COPILOT_MCP_COPILOT_SPACES_ENABLED: "true",
@@ -107,7 +115,7 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
       workingDirectory: repoPath,
       systemMessage: { content: systemPrompt },
       availableTools: agentConfig.tools?.includes("*") ? undefined : agentConfig.tools,
-      ...(spaceRef && pat
+      ...(spaceRefs.length > 0 && pat
         ? {
             mcpServers: {
               github: {

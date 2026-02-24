@@ -6,11 +6,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
 import { AgentConfig } from "@/lib/agents";
+import { SpaceSelector } from "@/components/SpaceSelector";
 
 interface ChatInterfaceProps {
   agent: AgentConfig;
   messages: Message[];
-  onSend: (content: string) => Promise<void>;
+  onSend: (content: string, selectedSpaces: string[]) => Promise<void>;
   isStreaming: boolean;
   streamingContent: string;
   streamingReasoning?: string;
@@ -115,6 +116,7 @@ export function ChatInterface({
   disabled,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
+  const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
   const [isReasoningOpen, setIsReasoningOpen] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -149,8 +151,8 @@ export function ChatInterface({
     const text = input.trim();
     if (!text || isStreaming || disabled) return;
     setInput("");
-    await onSend(text);
-  }, [input, isStreaming, disabled, onSend]);
+    await onSend(text, selectedSpaces);
+  }, [input, isStreaming, disabled, onSend, selectedSpaces]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -267,6 +269,10 @@ export function ChatInterface({
               el.style.height = "auto";
               el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
             }}
+          />
+          <SpaceSelector
+            onSelectionChange={setSelectedSpaces}
+            disabled={disabled || isStreaming}
           />
           <button
             onClick={handleSubmit}

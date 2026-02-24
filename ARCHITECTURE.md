@@ -11,7 +11,7 @@ flowchart TD
     subgraph Browser["Browser — localhost:3000"]
         subgraph NextJS["Next.js 14 Frontend (TypeScript + Tailwind)"]
             Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb"]
-            Components["Components\nChatInterface · Nav · RepoBar\nPATModal · RepoSelectorModal"]
+            Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal"]
             AppCtx["AppProvider — React Context\npat · username · activeRepo"]
             LS[("localStorage\nsessions · activity\nPAT · username · activeRepo")]
         end
@@ -104,7 +104,7 @@ sequenceDiagram
     participant Repo as ~/work/{user}/{repo}<br/>(Cloned Repo)
 
     User->>FE: Enter prompt, click Send
-    FE->>BE: POST /api/agent/run<br/>{ agentSlug, prompt, repoPath, context?, spaceRef? }
+    FE->>BE: POST /api/agent/run<br/>{ agentSlug, prompt, repoPath, context?, spaceRefs? }
 
     BE->>YAML: loadAgentConfig(agentSlug)
     YAML-->>BE: { model, tools, prompt }
@@ -112,7 +112,7 @@ sequenceDiagram
     BE->>SDK: new CopilotClient({ cwd: repoPath })
     BE->>SDK: client.start()
 
-    BE->>SDK: client.createSession({<br/>  model, streaming: true,<br/>  systemMessage, availableTools,<br/>  mcpServers? (if spaceRef)<br/>})
+    BE->>SDK: client.createSession({<br/>  model, streaming: true,<br/>  systemMessage, availableTools,<br/>  mcpServers? (if spaceRefs)<br/>})
     SDK-->>BE: session ready
 
     BE-->>FE: HTTP 200 + SSE headers<br/>(text/event-stream)
@@ -191,6 +191,6 @@ All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, 
 
 The Knowledge Base page lists the user's Copilot Spaces by creating a short-lived `CopilotClient` session configured with the GitHub MCP server (`https://api.githubcopilot.com/mcp/readonly`) and the `copilot_spaces` toolset (via the `X-MCP-Toolsets` header). The environment variables `COPILOT_MCP_COPILOT_SPACES_ENABLED=true` and `GITHUB_PERSONAL_ACCESS_TOKEN` must be set on the CopilotClient's env to enable the built-in MCP space tools (`github-list_copilot_spaces`, `github-get_copilot_space`). This takes 10-30 seconds due to the LLM round-trip.
 
-When a user selects a space, the `spaceRef` (`owner/name`) is stored in `localStorage` and included in subsequent `POST /api/agent/run` requests. The backend conditionally attaches the `copilot_spaces` MCP server to the agent session and appends a system prompt instruction to call `get_copilot_space`, giving the agent access to the curated space context.
+Users can select one or more Copilot Spaces directly from the chat input area using the `SpaceSelector` component. The selected space references (`owner/name` strings) are passed as `spaceRefs: string[]` in `POST /api/agent/run` requests. The backend conditionally attaches the `copilot_spaces` MCP server to the agent session and appends a system prompt instruction listing all selected spaces, instructing the agent to call `get_copilot_space` for each one. The legacy single `spaceRef` parameter is still accepted for backward compatibility and normalized into the array internally.
 
 MCP permission requests (`kind: "mcp"`) are auto-approved in both the KDB listing and agent sessions. Non-MCP permission requests are denied by rules.

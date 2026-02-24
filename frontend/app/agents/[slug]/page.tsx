@@ -88,7 +88,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   }, [params.slug, activeRepo?.fullName, sessionId]);
 
   const handleSend = useCallback(
-    async (content: string) => {
+    async (content: string, selectedSpaces: string[]) => {
       if (!session || !activeRepo) return;
 
       // Add user message
@@ -123,20 +123,18 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
       sessionStorage.removeItem(`web_spec_handoff_${params.slug}`);
 
       try {
-        const spaceRef = localStorage.getItem("web_spec_selected_space") || undefined;
-
         const res = await fetch("/api/agent/run", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(spaceRef && pat ? { Authorization: `Bearer ${pat}` } : {}),
+            ...(selectedSpaces.length > 0 && pat ? { Authorization: `Bearer ${pat}` } : {}),
           },
           body: JSON.stringify({
             agentSlug: params.slug,
             prompt: content,
             repoPath: activeRepo.localPath,
             context: context || undefined,
-            spaceRef,
+            spaceRefs: selectedSpaces.length > 0 ? selectedSpaces : undefined,
           }),
         });
 
