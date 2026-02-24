@@ -59,8 +59,8 @@ function AgentCard({ agent, disabled }: { agent: AgentConfig; disabled: boolean 
 }
 
 export default function AgentsPage() {
-  const { activeRepo } = useApp();
-  const disabled = !activeRepo;
+  const { activeRepo, pat } = useApp();
+  const disabled = !pat || !activeRepo;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -75,12 +75,14 @@ export default function AgentsPage() {
         </p>
       </div>
 
-      {/* No repo warning */}
+      {/* No PAT / no repo warning */}
       {disabled && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 mb-8 max-w-xl mx-auto">
           <AlertCircle size={16} className="text-amber-400 flex-shrink-0" />
           <p className="text-sm text-amber-300">
-            Select a GitHub repository above before starting an agent session.
+            {!pat
+              ? "Connect your GitHub account using a Personal Access Token to get started."
+              : "Select a GitHub repository above before starting an agent session."}
           </p>
         </div>
       )}

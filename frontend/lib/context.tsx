@@ -45,8 +45,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function clearAuth() {
     clearPat();
+    clearActiveRepo();
     setPATState(null);
     setUsernameState(null);
+    setActiveRepoState(null);
   }
 
   function setActiveRepo(repo: ActiveRepo) {
