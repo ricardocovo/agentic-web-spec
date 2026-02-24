@@ -17,6 +17,7 @@ export default function KDBPage() {
   const { pat } = useApp();
   const [spaces, setSpaces] = useState<CopilotSpace[]>([]);
   const [loading, setLoading] = useState(false);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
 
@@ -33,31 +34,35 @@ export default function KDBPage() {
 
   async function loadSpaces() {
     setLoading(true);
+    setSlowLoading(false);
     setError("");
+
+    const slowTimer = setTimeout(() => setSlowLoading(true), 5000);
 
     try {
       // Access GitHub MCP to list Copilot Spaces via backend proxy
       const res = await fetch("/api/backend/kdb/spaces", {
         headers: {
           Authorization: `Bearer ${pat}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
         },
       });
 
-      if (res.status === 404 || res.status === 422) {
-        // Spaces API may not be available — show empty state
-        setSpaces([]);
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errMessage =
+          (data as { error?: string })?.error ?? `Error: ${res.status}`;
+        setError(errMessage);
         return;
       }
 
-      if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-
-      const data = (await res.json()) as CopilotSpace[] | { spaces: CopilotSpace[] };
-      setSpaces(Array.isArray(data) ? data : data.spaces ?? []);
+      const typed = data as CopilotSpace[] | { spaces: CopilotSpace[] };
+      setSpaces(Array.isArray(typed) ? typed : typed.spaces ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Copilot Spaces");
     } finally {
+      clearTimeout(slowTimer);
+      setSlowLoading(false);
       setLoading(false);
     }
   }
@@ -99,15 +104,28 @@ export default function KDBPage() {
       {error && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-red-500/20 bg-red-500/10 mb-4">
           <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
-          <p className="text-sm text-red-300">{error}</p>
+          <p className="text-sm text-red-300 flex-1">{error}</p>
+          <button
+            onClick={loadSpaces}
+            className="px-3 py-1 text-xs font-medium rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors flex-shrink-0"
+          >
+            Retry
+          </button>
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center gap-2 text-muted py-8">
-          <Loader2 size={18} className="animate-spin" />
-          <span className="text-sm">Loading Copilot Spaces...</span>
+        <div className="flex flex-col items-center gap-2 text-muted py-8">
+          <div className="flex items-center gap-2">
+            <Loader2 size={18} className="animate-spin" />
+            <span className="text-sm">Connecting to Copilot Spaces via MCP…</span>
+          </div>
+          {slowLoading && (
+            <span className="text-xs text-muted">
+              This may take a moment — querying the MCP server…
+            </span>
+          )}
         </div>
       )}
 

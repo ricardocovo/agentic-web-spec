@@ -123,6 +123,8 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
       sessionStorage.removeItem(`web_spec_handoff_${params.slug}`);
 
       try {
+        const spaceRef = localStorage.getItem("web_spec_selected_space") || undefined;
+
         const res = await fetch("/api/agent/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -131,6 +133,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
             prompt: content,
             repoPath: activeRepo.localPath,
             context: context || undefined,
+            spaceRef,
           }),
         });
 

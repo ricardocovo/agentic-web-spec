@@ -37,11 +37,12 @@ function loadAgentConfig(slug: string): AgentFileConfig | null {
 
 // POST /api/agent/run  (SSE streaming)
 agentRouter.post("/run", async (req: Request, res: Response) => {
-  const { agentSlug, prompt, repoPath, context } = req.body as {
+  const { agentSlug, prompt, repoPath, context, spaceRef } = req.body as {
     agentSlug: string;
     prompt: string;
     repoPath: string;
     context?: string;
+    spaceRef?: string;
   };
 
   if (!agentSlug || !prompt || !repoPath) {
@@ -63,9 +64,13 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
   const THINK_GUIDANCE =
     "\n\nWhen reasoning through a problem before answering, enclose your internal thinking in <think>...</think> tags at the very beginning of your response. Your answer must follow after the closing </think> tag with no extra preamble.";
 
+  const spaceInstruction = spaceRef
+    ? `\n\nYou have access to a Copilot Space: "${spaceRef}". Use the get_copilot_space tool to retrieve its context and incorporate it into your analysis.`
+    : "";
+
   const systemPrompt = (context
     ? `${agentConfig.prompt}\n\nPrevious context:\n${context}`
-    : agentConfig.prompt) + THINK_GUIDANCE;
+    : agentConfig.prompt) + spaceInstruction + THINK_GUIDANCE;
 
   let client: CopilotClient | null = null;
 
@@ -82,12 +87,29 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
 
   let session: Awaited<ReturnType<CopilotClient["createSession"]>>;
   try {
+    const MCP_SPACES_URL = "https://api.githubcopilot.com/mcp/x/copilot_spaces";
+
     session = await client.createSession({
       model: agentConfig.model ?? "gpt-4.1",
       streaming: true,
       workingDirectory: repoPath,
       systemMessage: { content: systemPrompt },
       availableTools: agentConfig.tools?.includes("*") ? undefined : agentConfig.tools,
+      ...(spaceRef
+        ? {
+            mcpServers: {
+              copilot_spaces: {
+                type: "http" as const,
+                url: MCP_SPACES_URL,
+                tools: ["*"],
+              },
+            },
+            onPermissionRequest: (req: { kind: string }) => {
+              if (req.kind === "mcp") return { kind: "approved" as const };
+              return { kind: "denied-by-rules" as const };
+            },
+          }
+        : {}),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to create session";

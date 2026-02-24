@@ -23,7 +23,7 @@ flowchart TD
         subgraph Routes["Routes"]
             ReposRoute["POST /api/repos/clone\nGET  /api/repos/status\nGET  /api/repos/tree\nDELETE /api/repos/remove"]
             AgentRoute["POST /api/agent/run\n— SSE Streaming —"]
-            KdbRoute["GET /api/kdb/spaces\n— GitHub Proxy —"]
+            KdbRoute["GET /api/kdb/spaces\n— MCP via CopilotClient —"]
         end
 
         YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
@@ -41,7 +41,7 @@ flowchart TD
 
     subgraph GitHub["GitHub"]
         GitHubAPI["GitHub REST API\nrepo search · user info"]
-        CopilotSpacesAPI["GitHub Copilot Spaces API\n/user/copilot/spaces"]
+        CopilotSpacesMCP["GitHub MCP Server\napi.githubcopilot.com/mcp/x/copilot_spaces\nlist_copilot_spaces · get_copilot_space"]
         GitRemote["github.com\ngit clone over HTTPS + PAT"]
         CopilotAPI["GitHub Copilot API\ngpt-4.1 model\ntool execution host"]
     end
@@ -60,7 +60,7 @@ flowchart TD
     ReposRoute -- HTTPS --> GitRemote
 
     %% KDB route
-    KdbRoute -- "proxy GitHub PAT\n(forwards Authorization)" --> CopilotSpacesAPI
+    KdbRoute -- "CopilotClient + MCP\nlist_copilot_spaces" --> CopilotSpacesMCP
     Pages -- "fetch /api/kdb/spaces" --> KdbRoute
 
     %% Agent route
@@ -83,8 +83,8 @@ flowchart TD
     %% Frontend → GitHub API (PAT auth)
     Pages -- "GitHub REST API\n(repo search, user info)" --> GitHubAPI
     
-    %% KDB spaces loaded via proxy (no direct CORS call)
-    %% Pages call KdbRoute which proxies to CopilotSpacesAPI
+    %% KDB spaces listed via MCP server (CopilotClient session)
+    %% Agent sessions optionally attach copilot_spaces MCP for space context
 ```
 
 ---
@@ -104,7 +104,7 @@ sequenceDiagram
     participant Repo as ~/work/{user}/{repo}<br/>(Cloned Repo)
 
     User->>FE: Enter prompt, click Send
-    FE->>BE: POST /api/agent/run<br/>{ agentSlug, prompt, repoPath, context? }
+    FE->>BE: POST /api/agent/run<br/>{ agentSlug, prompt, repoPath, context?, spaceRef? }
 
     BE->>YAML: loadAgentConfig(agentSlug)
     YAML-->>BE: { model, tools, prompt }
@@ -112,7 +112,7 @@ sequenceDiagram
     BE->>SDK: new CopilotClient({ cwd: repoPath })
     BE->>SDK: client.start()
 
-    BE->>SDK: client.createSession({<br/>  model, streaming: true,<br/>  systemMessage, availableTools<br/>})
+    BE->>SDK: client.createSession({<br/>  model, streaming: true,<br/>  systemMessage, availableTools,<br/>  mcpServers? (if spaceRef)<br/>})
     SDK-->>BE: session ready
 
     BE-->>FE: HTTP 200 + SSE headers<br/>(text/event-stream)
@@ -166,7 +166,7 @@ All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, 
 | Frontend state | React Context + localStorage | PAT, username, active repo, sessions, activity log |
 | Backend server | Express 4 + TypeScript | HTTP routing, CORS, request validation |
 | Repo management | `child_process.execSync` + `git` | Shallow clone, file tree, removal |
-| Agent execution | `@github/copilot-sdk` `CopilotClient` | Session lifecycle, prompt dispatch, tool delegation |
+| Agent execution | `@github/copilot-sdk` `CopilotClient` | Session lifecycle, prompt dispatch, tool delegation, MCP server integration |
 | SSE proxy | Next.js Route Handler (`app/api/agent/run/route.ts`) | Bypasses rewrite-proxy buffering; pipes backend `ReadableStream` directly to client |
 | Streaming transport | Server-Sent Events (SSE) | Token-by-token delivery from Copilot API to browser |
 | Agent config | YAML files (`agents/*.agent.yaml`) | Model, tools, system prompt per agent |
@@ -184,3 +184,13 @@ All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, 
 6. **GitHub Copilot API** receives the system prompt + user message, executes tool calls (`grep`, `glob`, `view`, `bash`) directly against the repo filesystem, and streams tokens back.
 7. **Backend** forwards each `message_delta` event as an SSE `chunk` event.
 8. **Frontend** renders tokens in real time. On completion, a "Send to [next agent]" button appears, passing the full response as `context` to the next agent in the chain.
+
+---
+
+## Copilot Spaces via MCP
+
+The Knowledge Base page lists the user's Copilot Spaces by creating a short-lived `CopilotClient` session configured with the `copilot_spaces` MCP server (`https://api.githubcopilot.com/mcp/x/copilot_spaces`). The session prompts the LLM to call `list_copilot_spaces` and return structured JSON. This takes 10-30 seconds due to the LLM round-trip.
+
+When a user selects a space, the `spaceRef` (`owner/name`) is stored in `localStorage` and included in subsequent `POST /api/agent/run` requests. The backend conditionally attaches the `copilot_spaces` MCP server to the agent session and appends a system prompt instruction to call `get_copilot_space`, giving the agent access to the curated space context.
+
+MCP permission requests (`kind: "mcp"`) are auto-approved in both the KDB listing and agent sessions. Non-MCP permission requests are denied by rules.
