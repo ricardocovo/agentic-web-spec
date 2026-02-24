@@ -34,6 +34,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [streamingReasoning, setStreamingReasoning] = useState("");
   const sessionRef = useRef<Session | null>(null);
 
   // Redirect if no active repo
@@ -98,6 +99,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
       sessionRef.current = updated;
       setIsStreaming(true);
       setStreamingContent("");
+      setStreamingReasoning("");
 
       addActivity({
         type: "message_sent",
@@ -161,6 +163,13 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
                 } catch {
                   // ignore parse errors
                 }
+              } else if (currentEvent === "reasoning") {
+                try {
+                  const data = JSON.parse(line.slice(6)) as string;
+                  setStreamingReasoning((prev) => prev + data);
+                } catch {
+                  // ignore parse errors
+                }
               } else if (currentEvent === "error") {
                 try {
                   const msg = JSON.parse(line.slice(6)) as string;
@@ -201,6 +210,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
       } finally {
         setIsStreaming(false);
         setStreamingContent("");
+        setStreamingReasoning("");
       }
     },
     [session, activeRepo, params.slug, agent]
@@ -274,6 +284,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         onSend={handleSend}
         isStreaming={isStreaming}
         streamingContent={streamingContent}
+        streamingReasoning={streamingReasoning}
         nextAgent={nextAgent}
         onHandoff={handleHandoff}
         disabled={!activeRepo}

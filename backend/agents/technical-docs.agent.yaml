@@ -4,7 +4,7 @@ description: >
   Creates detailed technical specifications and implementation task breakdowns
   ready for development by agents or developers. Produces actionable tasks
   with clear context, files to change, and implementation guidance.
-model: gpt-4.1
+model: claude-sonnet-4.6
 tools:
   - grep
   - glob

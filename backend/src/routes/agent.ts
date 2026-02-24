@@ -60,9 +60,12 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
     return;
   }
 
-  const systemPrompt = context
+  const THINK_GUIDANCE =
+    "\n\nWhen reasoning through a problem before answering, enclose your internal thinking in <think>...</think> tags at the very beginning of your response. Your answer must follow after the closing </think> tag with no extra preamble.";
+
+  const systemPrompt = (context
     ? `${agentConfig.prompt}\n\nPrevious context:\n${context}`
-    : agentConfig.prompt;
+    : agentConfig.prompt) + THINK_GUIDANCE;
 
   let client: CopilotClient | null = null;
 
@@ -120,11 +123,70 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
   let gotContent = false;
   let promptSent = false;
 
+  // State for <think>...</think> tag-based reasoning extraction.
+  // Used when the model doesn't emit native assistant.reasoning_delta events.
+  let hasNativeReasoning = false;
+  let thinkState: "waiting" | "in_think" | "answering" = "waiting";
+  let thinkBuffer = "";
+  const THINK_OPEN = "<think>";
+  const THINK_CLOSE = "</think>";
+
   session.on((event: SessionEvent) => {
     console.log(`[agent:${agentSlug}] event: ${event.type}`);
+    if (event.type === "assistant.reasoning_delta") {
+      hasNativeReasoning = true;
+      sendEvent("reasoning", event.data.deltaContent ?? "");
+    }
     if (event.type === "assistant.message_delta") {
-      gotContent = true;
-      sendEvent("chunk", event.data.deltaContent ?? "");
+      const delta = event.data.deltaContent ?? "";
+
+      // Fast path: native reasoning already seen, or already past <think> block
+      if (hasNativeReasoning || thinkState === "answering") {
+        gotContent = true;
+        sendEvent("chunk", delta);
+        return;
+      }
+
+      // Accumulate into buffer and parse <think> block
+      thinkBuffer += delta;
+
+      if (thinkState === "waiting") {
+        if (thinkBuffer.startsWith(THINK_OPEN)) {
+          thinkState = "in_think";
+          thinkBuffer = thinkBuffer.slice(THINK_OPEN.length);
+        } else if (thinkBuffer.length >= THINK_OPEN.length) {
+          // No <think> tag — treat entire buffer as answer content
+          thinkState = "answering";
+          gotContent = true;
+          sendEvent("chunk", thinkBuffer);
+          thinkBuffer = "";
+          return;
+        }
+        // else: buffer too short to decide yet — keep waiting
+      }
+
+      if (thinkState === "in_think") {
+        const closeIdx = thinkBuffer.indexOf(THINK_CLOSE);
+        if (closeIdx !== -1) {
+          // Found end of think block — emit reasoning then switch to answering
+          if (closeIdx > 0) sendEvent("reasoning", thinkBuffer.slice(0, closeIdx));
+          thinkState = "answering";
+          const rest = thinkBuffer.slice(closeIdx + THINK_CLOSE.length).replace(/^\n+/, "");
+          thinkBuffer = "";
+          if (rest.length > 0) {
+            gotContent = true;
+            sendEvent("chunk", rest);
+          }
+        } else {
+          // Still inside think block — flush safe portion (keep THINK_CLOSE.length chars
+          // buffered in case the closing tag spans multiple deltas)
+          const safeEnd = thinkBuffer.length - THINK_CLOSE.length;
+          if (safeEnd > 0) {
+            sendEvent("reasoning", thinkBuffer.slice(0, safeEnd));
+            thinkBuffer = thinkBuffer.slice(safeEnd);
+          }
+        }
+      }
     }
     if (event.type === "assistant.message") {
       if (!gotContent && event.data.content) {
