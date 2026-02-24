@@ -10,8 +10,8 @@ This document describes the system architecture of **Web-Spec** — how the fron
 flowchart TD
     subgraph Browser["Browser — localhost:3000"]
         subgraph NextJS["Next.js 14 Frontend (TypeScript + Tailwind)"]
-            Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb"]
-            Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal"]
+            Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb · /admin"]
+            Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal · ActionPanel"]
             AppCtx["AppProvider — React Context\npat · username · activeRepo"]
             LS[("localStorage\nsessions · activity\nPAT · username · activeRepo")]
         end
@@ -24,6 +24,7 @@ flowchart TD
             ReposRoute["POST /api/repos/clone\nGET  /api/repos/status\nGET  /api/repos/tree\nDELETE /api/repos/remove"]
             AgentRoute["POST /api/agent/run\n— SSE Streaming —"]
             KdbRoute["GET /api/kdb/spaces\n— MCP via CopilotClient —"]
+            AdminRoute["GET /api/admin/agents\nGET /api/admin/agents/:slug\nPUT /api/admin/agents/:slug"]
         end
 
         YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
@@ -36,7 +37,7 @@ flowchart TD
 
     subgraph Disk["Local Filesystem"]
         WorkDir[("~/work/{username}/{repo}\nShallow-cloned repositories")]
-        AgentYAML["backend/agents/\ndeep-research.agent.yaml\nprd.agent.yaml\ntechnical-docs.agent.yaml"]
+        AgentYAML["backend/agents/\ndeep-research.agent.yaml\nprd.agent.yaml\ntechnical-docs.agent.yaml\nspec-writer.agent.yaml\nissue-creator.agent.yaml"]
     end
 
     subgraph GitHub["GitHub"]
@@ -149,12 +150,16 @@ flowchart LR
     DR["Deep Research\ndeep-research.agent.yaml\nTools: grep · glob · view · bash"]
     PRD["PRD Writer\nprd.agent.yaml\nTools: grep · glob · view"]
     TD["Technical Docs\ntechnical-docs.agent.yaml\nTools: grep · glob · view · bash"]
+    SW["Spec Writer\nspec-writer.agent.yaml\nTools: bash"]
+    IC["Issue Creator\nissue-creator.agent.yaml\nTools: bash"]
 
     DR -- "Send to PRD\n(output as context)" --> PRD
     PRD -- "Send to Technical Docs\n(output as context)" --> TD
+    TD -. "Create Docs on Repo\n(output as context)" .-> SW
+    TD -. "Create GitHub Issues\n(output as context)" .-> IC
 ```
 
-All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, giving them full filesystem access via their declared tools.
+All agents use model `gpt-4.1` (except `technical-docs` which uses `o4-mini`) and run with `cwd` set to the cloned repository. The `spec-writer` and `issue-creator` are action agents triggered by post-action buttons on the Technical Docs page — they receive the tech-docs output as `context` and use `bash` to create branches/files or GitHub issues via `gh` CLI.
 
 ---
 
@@ -164,12 +169,15 @@ All agents use model `gpt-4.1` and run with `cwd` set to the cloned repository, 
 |-------|-----------|----------------|
 | Frontend pages | Next.js 14 App Router | Routing, SSE consumption, UI rendering |
 | Frontend state | React Context + localStorage | PAT, username, active repo, sessions, activity log |
+| Admin page | `/admin` client component | View/edit agent YAML configs (displayName, description, model, tools, prompt) via REST API |
+| Action panel | `ActionPanel` modal component | Stream action agent output (spec-writer, issue-creator) in a modal overlay |
 | Backend server | Express 4 + TypeScript | HTTP routing, CORS, request validation |
+| Admin API | `routes/admin.ts` | GET/PUT endpoints for reading and writing agent YAML files on disk |
 | Repo management | `child_process.execSync` + `git` | Shallow clone, file tree, removal |
 | Agent execution | `@github/copilot-sdk` `CopilotClient` | Session lifecycle, prompt dispatch, tool delegation, MCP server integration |
 | SSE proxy | Next.js Route Handler (`app/api/agent/run/route.ts`) | Bypasses rewrite-proxy buffering; pipes backend `ReadableStream` directly to client |
 | Streaming transport | Server-Sent Events (SSE) | Token-by-token delivery from Copilot API to browser |
-| Agent config | YAML files (`agents/*.agent.yaml`) | Model, tools, system prompt per agent |
+| Agent config | YAML files (`agents/*.agent.yaml`) + shared `agentFileMap.ts` | Model, tools, system prompt per agent |
 | Model backend | GitHub Copilot API (gpt-4.1) | LLM inference + tool call execution against the repo |
 
 ---

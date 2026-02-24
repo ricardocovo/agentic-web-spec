@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useApp } from "@/lib/context";
 import { getAgent, getNextAgent } from "@/lib/agents";
 import { ChatInterface } from "@/components/ChatInterface";
+import { ActionPanel } from "@/components/ActionPanel";
+import type { AgentAction } from "@/lib/agents";
 import {
   createSession,
   addMessageToSession,
@@ -36,6 +38,11 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingReasoning, setStreamingReasoning] = useState("");
   const sessionRef = useRef<Session | null>(null);
+  const [actionPanel, setActionPanel] = useState<{
+    title: string;
+    agentSlug: string;
+    prompt: string;
+  } | null>(null);
 
   // Redirect if no active repo
   useEffect(() => {
@@ -236,6 +243,32 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     [session, activeRepo, params.slug, agent, pat]
   );
 
+  function handleCreateSpecs() {
+    if (!activeRepo || !sessionRef.current) return;
+    const lastAssistant = [...sessionRef.current.messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && !m.content.startsWith("📎"));
+    if (!lastAssistant) return;
+    setActionPanel({
+      title: "Create Docs on Repo",
+      agentSlug: "spec-writer",
+      prompt: `Create spec files in the repository.\n\nRepository path: ${activeRepo.localPath}\nRepository: ${activeRepo.fullName}`,
+    });
+  }
+
+  function handleCreateIssues() {
+    if (!activeRepo || !sessionRef.current) return;
+    const lastAssistant = [...sessionRef.current.messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && !m.content.startsWith("📎"));
+    if (!lastAssistant) return;
+    setActionPanel({
+      title: "Create GitHub Issues",
+      agentSlug: "issue-creator",
+      prompt: `Create GitHub issues from the specification.\n\nRepository: ${activeRepo.fullName}`,
+    });
+  }
+
   function handleHandoff() {
     if (!nextAgent || !sessionRef.current) return;
 
@@ -270,6 +303,13 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   }
 
   const Icon = AGENT_ICONS[agent.slug as keyof typeof AGENT_ICONS] ?? FileText;
+
+  const agentActions: AgentAction[] | undefined = agent.slug === "technical-docs"
+    ? [
+        { label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", onClick: handleCreateSpecs },
+        { label: "Create GitHub Issues", description: "Create GitHub issues from the spec", onClick: handleCreateIssues },
+      ]
+    : undefined;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -308,7 +348,24 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         nextAgent={nextAgent}
         onHandoff={handleHandoff}
         disabled={!activeRepo}
+        agentActions={agentActions}
       />
+      {actionPanel && activeRepo && pat && (
+        <ActionPanel
+          title={actionPanel.title}
+          agentSlug={actionPanel.agentSlug}
+          prompt={actionPanel.prompt}
+          repoPath={activeRepo.localPath}
+          context={
+            [...(sessionRef.current?.messages ?? [])]
+              .reverse()
+              .find((m) => m.role === "assistant" && !m.content.startsWith("📎"))
+              ?.content ?? ""
+          }
+          pat={pat}
+          onClose={() => setActionPanel(null)}
+        />
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp } f
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
-import { AgentConfig } from "@/lib/agents";
+import { AgentConfig, AgentAction } from "@/lib/agents";
 import { SpaceSelector } from "@/components/SpaceSelector";
 
 interface ChatInterfaceProps {
@@ -18,6 +18,7 @@ interface ChatInterfaceProps {
   nextAgent?: AgentConfig;
   onHandoff?: () => void;
   disabled?: boolean;
+  agentActions?: AgentAction[];
 }
 
 function MessageBubble({ msg }: { msg: Message }) {
@@ -114,6 +115,7 @@ export function ChatInterface({
   nextAgent,
   onHandoff,
   disabled,
+  agentActions,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
@@ -248,6 +250,22 @@ export function ChatInterface({
             Send to {nextAgent.name}
             <ArrowRight size={14} />
           </button>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {hasMessages && !isStreaming && agentActions && agentActions.length > 0 && (
+        <div className="py-3 flex justify-center gap-3">
+          {agentActions.map((action) => (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              title={action.description}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent transition-colors"
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       )}
 

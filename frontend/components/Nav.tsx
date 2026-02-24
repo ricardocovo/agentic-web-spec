@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Bot, Database, LayoutDashboard } from "lucide-react";
+import { Settings, Bot, Database, LayoutDashboard, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { PATModal } from "@/components/PATModal";
 
@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/", label: "Agents", icon: Bot },
   { href: "/kdb", label: "KDB", icon: Database },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin", label: "Admin", icon: SlidersHorizontal },
 ];
 
 export function Nav() {

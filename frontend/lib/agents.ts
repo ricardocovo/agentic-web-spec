@@ -10,6 +10,12 @@ export interface AgentConfig {
   nextAgent?: string;
 }
 
+export interface AgentAction {
+  label: string;
+  description: string;
+  onClick: () => void;
+}
+
 export const AGENTS: AgentConfig[] = [
   {
     slug: "deep-research",

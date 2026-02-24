@@ -3,12 +3,9 @@ import { CopilotClient, SessionEvent } from "@github/copilot-sdk";
 import fs from "fs";
 import path from "path";
 import { parse as parseYaml } from "yaml";
-import { fileURLToPath } from "url";
+import { AGENT_FILE_MAP, AGENTS_DIR } from "../lib/agentFileMap.js";
 
 export const agentRouter = Router();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const AGENTS_DIR = path.resolve(__dirname, "../../agents");
 
 interface AgentFileConfig {
   name: string;
@@ -18,13 +15,6 @@ interface AgentFileConfig {
   tools?: string[];
   prompt: string;
 }
-
-// Slug → filename mapping
-const AGENT_FILE_MAP: Record<string, string> = {
-  "deep-research": "deep-research.agent.yaml",
-  "prd": "prd.agent.yaml",
-  "technical-docs": "technical-docs.agent.yaml",
-};
 
 function loadAgentConfig(slug: string): AgentFileConfig | null {
   const filename = AGENT_FILE_MAP[slug];
@@ -89,12 +79,15 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
   // Create client and session BEFORE opening SSE stream so errors return proper HTTP responses
   try {
     const clientOpts: Record<string, unknown> = { cwd: repoPath };
-    if (spaceRefs.length > 0 && pat) {
+    if (pat) {
       clientOpts.env = {
         ...process.env,
-        COPILOT_MCP_COPILOT_SPACES_ENABLED: "true",
+        GH_TOKEN: pat,
         GITHUB_PERSONAL_ACCESS_TOKEN: pat,
       };
+      if (spaceRefs.length > 0) {
+        (clientOpts.env as Record<string, string>).COPILOT_MCP_COPILOT_SPACES_ENABLED = "true";
+      }
     }
     client = new CopilotClient(clientOpts);
     await client.start();
