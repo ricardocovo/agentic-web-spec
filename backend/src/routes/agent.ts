@@ -182,8 +182,8 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
     if (event.type === "assistant.message_delta") {
       const delta = event.data.deltaContent ?? "";
 
-      // Fast path: native reasoning already seen, or already past <think> block
-      if (hasNativeReasoning || thinkState === "answering") {
+      // Fast path: already past <think> block
+      if (thinkState === "answering") {
         gotContent = true;
         sendEvent("chunk", delta);
         return;
@@ -210,8 +210,8 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
       if (thinkState === "in_think") {
         const closeIdx = thinkBuffer.indexOf(THINK_CLOSE);
         if (closeIdx !== -1) {
-          // Found end of think block — emit reasoning then switch to answering
-          if (closeIdx > 0) sendEvent("reasoning", thinkBuffer.slice(0, closeIdx));
+          // Found end of think block — emit reasoning (if not already covered by native events) then switch to answering
+          if (closeIdx > 0 && !hasNativeReasoning) sendEvent("reasoning", thinkBuffer.slice(0, closeIdx));
           thinkState = "answering";
           const rest = thinkBuffer.slice(closeIdx + THINK_CLOSE.length).replace(/^\n+/, "");
           thinkBuffer = "";
@@ -224,7 +224,7 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
           // buffered in case the closing tag spans multiple deltas)
           const safeEnd = thinkBuffer.length - THINK_CLOSE.length;
           if (safeEnd > 0) {
-            sendEvent("reasoning", thinkBuffer.slice(0, safeEnd));
+            if (!hasNativeReasoning) sendEvent("reasoning", thinkBuffer.slice(0, safeEnd));
             thinkBuffer = thinkBuffer.slice(safeEnd);
           }
         }
