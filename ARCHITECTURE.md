@@ -6,86 +6,85 @@ This document describes the system architecture of **Web-Spec** — how the fron
 
 ## System Overview
 
+The system has three layers: a **browser-based frontend**, a **stateless backend**, and **GitHub's cloud services**. The backend bridges the frontend to the Copilot SDK and the local filesystem — it holds no persistent state of its own.
+
+```mermaid
+flowchart TD
+    Browser["🖥 Next.js Frontend\nlocalhost:3000\nPages · Components · React Context · localStorage"]
+    Backend["⚙️ Express Backend\nlocalhost:3001\nREST + SSE routes · Copilot SDK · YAML agent configs"]
+    Disk[("💾 Local Filesystem\n~/work/{user}/{repo}\nShallow-cloned repos + agent YAML files")]
+    GitHub["☁️ GitHub Services\nREST API · Copilot API · MCP Server · Git remotes"]
+
+    Browser -- "REST + SSE\n(PAT in Authorization header)" --> Backend
+    Browser -- "GitHub REST API\n(repo search, user info)" --> GitHub
+    Backend -- "git clone / file tree" --> Disk
+    Backend -- "Copilot SDK sessions\n(streaming + tool calls)" --> GitHub
+    GitHub -- "tool execution\n(grep · glob · view · bash)" --> Disk
+```
+
+### Frontend Internals
+
+The Next.js 14 App Router frontend manages all user-facing state in React Context backed by `localStorage` — no server-side persistence.
+
 ```mermaid
 flowchart TD
     subgraph Browser["Browser — localhost:3000"]
-        subgraph NextJS["Next.js 14 Frontend (TypeScript + Tailwind)"]
-            Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb · /admin"]
-            Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal · ActionPanel"]
-            AppCtx["AppProvider — React Context\npat · username · activeRepo"]
-            LS[("localStorage\nsessions · activity\nPAT · username · activeRepo")]
-        end
+        Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb · /admin"]
+        Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal · ActionPanel"]
+        AppCtx["AppProvider — React Context\npat · username · activeRepo"]
+        LS[("localStorage\nsessions · activity\nPAT · username · activeRepo")]
     end
 
-    subgraph Backend["Node.js Express — localhost:3001"]
-        Express["Express Server\nsrc/index.ts"]
-
-        subgraph Routes["Routes"]
-            ReposRoute["POST /api/repos/clone\nGET  /api/repos/status\nGET  /api/repos/tree\nDELETE /api/repos/remove"]
-            AgentRoute["POST /api/agent/run\n— SSE Streaming —"]
-            KdbRoute["GET /api/kdb/spaces\n— MCP via CopilotClient —"]
-            AdminRoute["GET /api/admin/agents\nGET /api/admin/agents/:slug\nPUT /api/admin/agents/:slug"]
-        end
-
-        YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
-
-        subgraph CopilotSDK["@github/copilot-sdk"]
-            CopilotClient["CopilotClient\n{ cwd: repoPath }"]
-            Session["Session\nmodel: gpt-4.1\nstreaming: true\nsystemMessage + tools"]
-        end
-    end
-
-    subgraph Disk["Local Filesystem"]
-        WorkDir[("~/work/{username}/{repo}\nShallow-cloned repositories")]
-        AgentYAML["backend/agents/\ndeep-research.agent.yaml\nprd.agent.yaml\ntechnical-docs.agent.yaml\nspec-writer.agent.yaml\nissue-creator.agent.yaml"]
-    end
-
-    subgraph GitHub["GitHub"]
-        GitHubAPI["GitHub REST API\nrepo search · user info"]
-        CopilotSpacesMCP["GitHub MCP Server\napi.githubcopilot.com/mcp/readonly\nX-MCP-Toolsets: copilot_spaces"]
-        GitRemote["github.com\ngit clone over HTTPS + PAT"]
-        CopilotAPI["GitHub Copilot API\ngpt-4.1 model\ntool execution host"]
-    end
-
-    %% Frontend internal
     Pages -- state reads/writes --> AppCtx
     AppCtx <--> LS
     Components -- state reads --> AppCtx
+```
 
-    %% Frontend → Backend
-    Pages -- "REST + SSE\nHTTP" --> Express
+### Backend Internals
+
+The Express backend exposes four route groups behind a single server. Agent execution uses the `@github/copilot-sdk` to create streaming sessions against cloned repos.
+
+```mermaid
+flowchart TD
+    Express["Express Server\nsrc/index.ts"]
+
+    subgraph Routes["Route Groups"]
+        ReposRoute["Repos API\nPOST /api/repos/clone\nGET  /api/repos/status\nGET  /api/repos/tree\nDELETE /api/repos/remove"]
+        AgentRoute["Agent API\nPOST /api/agent/run\n— SSE Streaming —"]
+        KdbRoute["KDB API\nGET /api/kdb/spaces\n— MCP via CopilotClient —"]
+        AdminRoute["Admin API\nGET /api/admin/agents\nGET /api/admin/agents/:slug\nPUT /api/admin/agents/:slug"]
+    end
+
+    YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
+
+    subgraph CopilotSDK["@github/copilot-sdk"]
+        CopilotClient["CopilotClient\n{ cwd: repoPath }"]
+        Session["Session\nmodel · streaming: true\nsystemMessage + tools"]
+    end
+
     Express --> Routes
-
-    %% Repos route
-    ReposRoute -- "git clone --depth 1\n(HTTPS + PAT)" --> WorkDir
-    ReposRoute -- HTTPS --> GitRemote
-
-    %% KDB route
-    KdbRoute -- "CopilotClient + MCP\nlist_copilot_spaces" --> CopilotSpacesMCP
-    Pages -- "fetch /api/kdb/spaces" --> KdbRoute
-
-    %% Agent route
     AgentRoute -- "load config" --> YAMLLoader
-    YAMLLoader -- "reads" --> AgentYAML
     AgentRoute -- "new CopilotClient({ cwd })" --> CopilotClient
     CopilotClient -- "client.start()" --> Session
-    CopilotClient -- "cwd reference" --> WorkDir
+```
 
-    %% SDK → Copilot API
-    Session -- "send prompt + system message" --> CopilotAPI
-    CopilotAPI -- "tool calls: grep · glob · view · bash" --> WorkDir
-    WorkDir -- "tool results" --> CopilotAPI
-    CopilotAPI -- "streaming token deltas" --> Session
+### External Services
 
-    %% Streaming back to browser
-    Session -- "message_delta events" --> AgentRoute
-    AgentRoute -- "SSE: event:chunk · event:done · event:error" --> Pages
+The backend and frontend each communicate with GitHub services directly — the frontend for REST API calls (repo search, user info) and the backend for Copilot SDK sessions, git operations, and MCP-based Copilot Spaces access.
 
-    %% Frontend → GitHub API (PAT auth)
-    Pages -- "GitHub REST API\n(repo search, user info)" --> GitHubAPI
-    
-    %% KDB spaces listed via MCP server (CopilotClient session)
-    %% Agent sessions optionally attach copilot_spaces MCP for space context
+```mermaid
+flowchart LR
+    subgraph GitHub["GitHub Services"]
+        GitHubAPI["GitHub REST API\nrepo search · user info"]
+        CopilotAPI["GitHub Copilot API\ngpt-4.1 model\ntool execution host"]
+        CopilotSpacesMCP["GitHub MCP Server\napi.githubcopilot.com/mcp/readonly\ncopilot_spaces toolset"]
+        GitRemote["github.com\ngit clone over HTTPS + PAT"]
+    end
+
+    Browser["Frontend"] -- "PAT-authed requests" --> GitHubAPI
+    Backend["Backend"] -- "Copilot SDK sessions" --> CopilotAPI
+    Backend -- "git clone --depth 1" --> GitRemote
+    Backend -- "CopilotClient + MCP" --> CopilotSpacesMCP
 ```
 
 ---
