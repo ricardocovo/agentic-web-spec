@@ -238,6 +238,17 @@ export function ChatInterface({
       {/* Handoff + Action buttons */}
       {hasMessages && !isStreaming && (showHandoff || (agentActions && agentActions.length > 0)) && (
         <div className="py-3 flex justify-center gap-3 flex-wrap">
+          {agentActions?.map((action) => (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              title={action.description}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent transition-colors"
+            >
+              {action.icon && <action.icon size={16} />}
+              {action.label}
+            </button>
+          ))}
           {showHandoff && (
             <button
               onClick={onHandoff}
@@ -252,17 +263,6 @@ export function ChatInterface({
               <ArrowRight size={14} />
             </button>
           )}
-          {agentActions?.map((action) => (
-            <button
-              key={action.label}
-              onClick={action.onClick}
-              title={action.description}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent transition-colors"
-            >
-              {action.icon && <action.icon size={16} />}
-              {action.label}
-            </button>
-          ))}
         </div>
       )}
 
