@@ -11,4 +11,5 @@ export const AGENT_FILE_MAP: Record<string, string> = {
   "technical-docs": "technical-docs.agent.yaml",
   "spec-writer": "spec-writer.agent.yaml",
   "issue-creator": "issue-creator.agent.yaml",
+  "prd-writer": "prd-writer.agent.yaml",
 };

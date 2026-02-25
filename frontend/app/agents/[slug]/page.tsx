@@ -249,6 +249,19 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     [session, activeRepo, params.slug, agent, pat]
   );
 
+  function handleCreatePRD() {
+    if (!activeRepo || !sessionRef.current) return;
+    const lastAssistant = [...sessionRef.current.messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && !m.content.startsWith("📎"));
+    if (!lastAssistant) return;
+    setActionPanel({
+      title: "Create PRD on Repo",
+      agentSlug: "prd-writer",
+      prompt: `Create PRD document in the repository.\n\nRepository path: ${activeRepo.localPath}\nRepository: ${activeRepo.fullName}`,
+    });
+  }
+
   function handleCreateSpecs() {
     if (!activeRepo || !sessionRef.current) return;
     const lastAssistant = [...sessionRef.current.messages]
@@ -310,12 +323,17 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
 
   const Icon = AGENT_ICONS[agent.slug as keyof typeof AGENT_ICONS] ?? FileText;
 
-  const agentActions: AgentAction[] | undefined = agent.slug === "technical-docs"
-    ? [
-        { label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", icon: GitPullRequest, onClick: handleCreateSpecs },
-        { label: "Create GitHub Issues", description: "Create GitHub issues from the spec", icon: CircleDot, onClick: handleCreateIssues },
-      ]
-    : undefined;
+  const agentActions: AgentAction[] | undefined =
+    agent.slug === "prd"
+      ? [
+          { label: "Create PRD on Repo", description: "Create a branch with the PRD document in the repo", icon: GitPullRequest, onClick: handleCreatePRD },
+        ]
+      : agent.slug === "technical-docs"
+      ? [
+          { label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", icon: GitPullRequest, onClick: handleCreateSpecs },
+          { label: "Create GitHub Issues", description: "Create GitHub issues from the spec", icon: CircleDot, onClick: handleCreateIssues },
+        ]
+      : undefined;
 
   return (
     <div className="max-w-4xl mx-auto">
