@@ -263,6 +263,7 @@ export function ChatInterface({
               title={action.description}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent transition-colors"
             >
+              {action.icon && <action.icon size={16} />}
               {action.label}
             </button>
           ))}

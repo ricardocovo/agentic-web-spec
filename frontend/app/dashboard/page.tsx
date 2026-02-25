@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { LayoutDashboard, MessageSquare, GitBranch, Search, FileText, Code, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getSessions, getActivity, Session, ActivityEvent } from "@/lib/storage";
 import { getAgent } from "@/lib/agents";
 
@@ -36,6 +37,7 @@ function ActivityIcon({ type }: { type: ActivityEvent["type"] }) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
 
@@ -83,9 +85,17 @@ export default function DashboardPage() {
                   : FileText;
 
                 return (
-                  <Link
+                  <a
                     key={session.id}
-                    href={`/agents/${session.agentSlug}?session=${session.id}`}
+                    href={`/agents/${session.agentSlug}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      sessionStorage.setItem(
+                        `web_spec_resume_${session.agentSlug}`,
+                        session.id
+                      );
+                      router.push(`/agents/${session.agentSlug}`);
+                    }}
                     className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface hover:bg-surface-2 hover:border-l-2 hover:border-accent transition-all group"
                   >
                     {/* Agent icon */}
@@ -115,7 +125,7 @@ export default function DashboardPage() {
                       <MessageSquare size={11} />
                       {session.messages.length}
                     </div>
-                  </Link>
+                  </a>
                 );
               })}
             </div>

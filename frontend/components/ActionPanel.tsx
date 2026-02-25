@@ -1,9 +1,26 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, CheckCircle, XCircle, X } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, X, GitBranch, FileText, GitPullRequest, Upload, Terminal } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const PROGRESS_HINTS: { pattern: RegExp; label: string; icon: "branch" | "file" | "push" | "pr" | "terminal" }[] = [
+  { pattern: /git checkout -b|creating.*branch|new branch/i, label: "Creating branch", icon: "branch" },
+  { pattern: /mkdir|writing.*spec|write.*spec|creating.*directory|specs\//i, label: "Writing spec files", icon: "file" },
+  { pattern: /git add|git commit|staging|committing/i, label: "Committing changes", icon: "terminal" },
+  { pattern: /git push|pushing/i, label: "Pushing to remote", icon: "push" },
+  { pattern: /gh pr create|pull request|creating.*pr/i, label: "Opening pull request", icon: "pr" },
+  { pattern: /gh issue|creating.*issue/i, label: "Creating issues", icon: "terminal" },
+];
+
+const STEP_ICONS = {
+  branch: GitBranch,
+  file: FileText,
+  push: Upload,
+  pr: GitPullRequest,
+  terminal: Terminal,
+};
 
 interface ActionPanelProps {
   title: string;
@@ -19,7 +36,9 @@ export function ActionPanel({ title, agentSlug, prompt, repoPath, context, pat, 
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<"streaming" | "done" | "error">("streaming");
   const [errorMsg, setErrorMsg] = useState("");
+  const [progressSteps, setProgressSteps] = useState<{ label: string; icon: keyof typeof STEP_ICONS }[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
+  const seenStepsRef = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +77,16 @@ export function ActionPanel({ title, agentSlug, prompt, repoPath, context, pat, 
                 accumulated += data;
                 if (!cancelled) setContent(accumulated);
               } catch {}
+            } else if (currentEvent === "reasoning") {
+              try {
+                const data = JSON.parse(line.slice(6)) as string;
+                for (const hint of PROGRESS_HINTS) {
+                  if (hint.pattern.test(data) && !seenStepsRef.current.has(hint.label)) {
+                    seenStepsRef.current.add(hint.label);
+                    if (!cancelled) setProgressSteps((prev) => [...prev, { label: hint.label, icon: hint.icon }]);
+                  }
+                }
+              } catch {}
             } else if (currentEvent === "error") {
               try {
                 const msg = JSON.parse(line.slice(6));
@@ -95,7 +124,7 @@ export function ActionPanel({ title, agentSlug, prompt, repoPath, context, pat, 
   // Auto-scroll
   useEffect(() => {
     contentRef.current?.scrollTo({ top: contentRef.current.scrollHeight });
-  }, [content]);
+  }, [content, progressSteps]);
 
   // Escape key to close (only when not streaming)
   useEffect(() => {
@@ -108,7 +137,7 @@ export function ActionPanel({ title, agentSlug, prompt, repoPath, context, pat, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-surface-1 border border-border rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-surface-2 border border-border rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -134,12 +163,46 @@ export function ActionPanel({ title, agentSlug, prompt, repoPath, context, pat, 
         <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-4">
           {content ? (
             <div className="md-content text-sm text-text-primary">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ href, children, ...props }) => (
+                    <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                      {children}
+                    </a>
+                  ),
+                }}
+              >{content}</ReactMarkdown>
             </div>
           ) : status === "streaming" ? (
-            <div className="flex items-center gap-2 text-muted text-sm">
-              <Loader2 size={14} className="animate-spin" />
-              Starting action…
+            <div className="flex flex-col gap-3 py-6">
+              {progressSteps.length === 0 ? (
+                <div className="flex items-center gap-3 text-muted text-sm animate-[fadeIn_0.4s_ease-in-out]">
+                  <Loader2 size={16} className="text-accent animate-spin" />
+                  Starting up…
+                </div>
+              ) : (
+                progressSteps.map((step, i) => {
+                  const StepIcon = STEP_ICONS[step.icon];
+                  const isLatest = i === progressSteps.length - 1;
+                  return (
+                    <div
+                      key={step.label}
+                      className="flex items-center gap-3 text-sm animate-[fadeIn_0.4s_ease-in-out]"
+                    >
+                      {isLatest ? (
+                        <Loader2 size={16} className="text-accent animate-spin flex-shrink-0" />
+                      ) : (
+                        <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
+                      )}
+                      <StepIcon size={14} className={isLatest ? "text-accent flex-shrink-0" : "text-green-400 flex-shrink-0"} />
+                      <span className={isLatest ? "text-text-primary" : "text-muted"}>
+                        {step.label}{isLatest ? "…" : ""}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           ) : null}
           {status === "error" && errorMsg && (

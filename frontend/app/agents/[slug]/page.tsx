@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Search, FileText, Code } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Search, FileText, Code, GitPullRequest, CircleDot } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/lib/context";
 import { getAgent, getNextAgent } from "@/lib/agents";
@@ -27,8 +27,6 @@ const AGENT_ICONS = {
 export default function AgentPage({ params }: { params: { slug: string } }) {
   const { activeRepo, pat } = useApp();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session");
   const agent = getAgent(params.slug);
   const nextAgent = getNextAgent(params.slug);
 
@@ -53,9 +51,16 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     if (!agent || !activeRepo) return;
 
-    // Restore existing session from dashboard click
-    if (sessionId) {
-      const existing = getSession(sessionId);
+    // Check for a session to resume (set by the dashboard via sessionStorage)
+    const resumeKey = `web_spec_resume_${params.slug}`;
+    const resumeSessionId =
+      typeof window !== "undefined" ? sessionStorage.getItem(resumeKey) : null;
+
+    if (resumeSessionId) {
+      // NOTE: We intentionally do NOT remove the key here — React Strict Mode
+      // double-fires effects, so the second run would miss the value.  The key
+      // is cleared in handleSend once the session has been consumed.
+      const existing = getSession(resumeSessionId);
       if (existing) {
         setSession(existing);
         sessionRef.current = existing;
@@ -92,7 +97,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     setMessages(newSession.messages);
   // activeRepo.fullName is intentionally included so the session resets when the repo switches
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.slug, activeRepo?.fullName, sessionId]);
+  }, [params.slug, activeRepo?.fullName]);
 
   const handleSend = useCallback(
     async (content: string, selectedSpaces: string[]) => {
@@ -126,7 +131,8 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         )
         .join("\n\n");
 
-      // Clean up the handoff key now that context has been consumed
+      // Clean up session-resume and handoff keys now that context has been consumed
+      sessionStorage.removeItem(`web_spec_resume_${params.slug}`);
       sessionStorage.removeItem(`web_spec_handoff_${params.slug}`);
 
       try {
@@ -306,8 +312,8 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
 
   const agentActions: AgentAction[] | undefined = agent.slug === "technical-docs"
     ? [
-        { label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", onClick: handleCreateSpecs },
-        { label: "Create GitHub Issues", description: "Create GitHub issues from the spec", onClick: handleCreateIssues },
+        { label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", icon: GitPullRequest, onClick: handleCreateSpecs },
+        { label: "Create GitHub Issues", description: "Create GitHub issues from the spec", icon: CircleDot, onClick: handleCreateIssues },
       ]
     : undefined;
 

@@ -25,13 +25,29 @@ prompt: |
      git commit -m "Add spec: {feature title}"
      git push origin HEAD
      ```
-  10. Output a summary with:
+  10. Create a pull request using the `gh` CLI. Build a descriptive PR body that includes:
+      - A brief summary of the feature
+      - A "Files included" section listing every file created with a short description of each
+      - Example:
+        ```
+        gh pr create --title "Add spec: {feature title}" --body "## Summary
+        Auto-generated specification for **{feature title}**.
+
+        {2-3 sentence overview of what the feature covers}
+
+        ## Files included
+        - \`specs/{feature-slug}/spec.md\` — High-level feature specification
+        - \`specs/{feature-slug}/stories/{story-slug}.md\` — {brief story description}
+        ..." --head specs/{feature-slug}
+        ```
+  11. Output a summary with:
       - Branch name
       - Files created
-      - GitHub compare URL: `https://github.com/{repoFullName}/compare/specs/{feature-slug}`
+      - Pull request URL (from the `gh pr create` output)
 
   **Important:**
   - Parse the context carefully to separate the main spec from individual user stories
   - Use clean markdown formatting in all files
   - If git push fails, report the error clearly
   - The repo remote URL already has credentials embedded, so no auth setup is needed for git push
+  - The `GH_TOKEN` environment variable is already set for `gh` CLI authentication

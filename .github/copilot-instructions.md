@@ -2,89 +2,88 @@
 
 ## Project Overview
 
-Web-Spec is an AI agent pipeline app: select a GitHub repo → run chained agents (Deep Research → PRD → Technical Docs) → get real-time streaming specs. It is a **npm workspaces monorepo** with two packages.
+Web-Spec is an AI agent pipeline app: select a GitHub repo → run chained agents (Deep Research → PRD → Technical Docs) → get real-time streaming specs. It is an **npm workspaces monorepo** with two packages: `frontend/` (Next.js 14 App Router, port 3000) and `backend/` (Express 4 + TypeScript ESM, port 3001).
+
+## Commands
+
+```bash
+# Install all dependencies
+npm run install:all
+
+# Start both frontend + backend concurrently
+npm run dev
+
+# Individual packages
+npm run dev --workspace=backend    # tsx + nodemon, auto-restarts on .ts changes
+npm run dev --workspace=frontend   # next dev --port 3000
+
+# Type-check (no tests exist)
+cd frontend && npx tsc --noEmit
+cd backend && npx tsc --noEmit
+
+# Lint (frontend only)
+cd frontend && npm run lint
+
+# Build
+npm run build                       # builds frontend only
+npm run build --workspace=backend   # tsc → dist/
+```
 
 ## Architecture
 
-```
-frontend/  — Next.js 14 App Router, port 3000
-backend/   — Express 4 + TypeScript ESM, port 3001
-```
-
-- **Frontend** manages all state via React context (`frontend/lib/context.tsx`) backed by `localStorage` — there is no backend database.
-- **Backend** clones repos to `~/work/{username}/{repo}` and runs `@github/copilot-sdk` sessions against them, streaming SSE back to the browser.
+- **No database.** All state lives in `localStorage` on the client. The backend is stateless.
+- **Backend** clones repos to `~/work/{username}/{repo}` and runs `@github/copilot-sdk` sessions, streaming SSE back to the browser.
+- **Frontend** consumes SSE via a Next.js Route Handler proxy (`frontend/app/api/agent/run/route.ts`) that pipes the backend stream directly, bypassing Next.js rewrite-proxy buffering.
 - Agent configs live in `backend/agents/*.agent.yaml` and define `model`, `tools`, and `prompt`.
+- The GitHub PAT is stored in the browser and passed as `Authorization: Bearer <pat>` on every API call — never stored server-side.
 
-## Dev Workflow
+### Agent pipeline
 
-```bash
-# Install all dependencies (run once)
-npm run install:all
-
-# Start both frontend and backend concurrently
-npm run dev          # runs from repo root
-
-# Individual packages
-npm run dev --workspace=backend   # tsx + nodemon, no build step
-npm run dev --workspace=frontend  # next dev --port 3000
+```
+Deep Research → PRD Writer → Technical Docs → [spec-writer | issue-creator]
 ```
 
-- Backend uses `tsx` in dev (no compile needed). Production: `npm run build --workspace=backend` → `tsc`.
-- Frontend: `npm run build` at root only builds the frontend.
+When a user clicks "Send to [next agent]", the output is stored in `sessionStorage` under `web_spec_handoff_<nextSlug>` and injected as `context` on the next `/api/agent/run` request.
 
-## Key Files
+### SSE streaming protocol
 
-| File | Purpose |
-|---|---|
-| `backend/agents/*.agent.yaml` | Agent config: model, tools, system prompt |
-| `backend/src/routes/agent.ts` | `/api/agent/run` — loads YAML, creates `CopilotClient`, streams SSE |
-| `backend/src/routes/repos.ts` | `/api/repos/*` — `git clone --depth 1` into `~/work/` |
-| `frontend/lib/agents.ts` | Frontend agent registry: slugs, colors, `nextAgent` chain |
-| `frontend/lib/storage.ts` | All `localStorage` accessors (sessions, PAT, active repo) |
-| `frontend/lib/context.tsx` | `AppProvider` — PAT, username, activeRepo in React context |
-| `frontend/app/agents/[slug]/page.tsx` | Per-agent chat page; reads handoff from `sessionStorage` |
+`POST /api/agent/run` body: `{ agentSlug, prompt, repoPath, context?, spaceRefs? }`
 
-## Agent System
+Events: `chunk` (token), `reasoning` (think block), `done`, `error`.
 
-### Adding a new agent
-1. Create `backend/agents/<slug>.agent.yaml` with fields: `name`, `displayName`, `model`, `tools`, `prompt`.
-2. Add the slug → filename entry to `AGENT_FILE_MAP` in `backend/src/routes/agent.ts`.
-3. Add an `AgentConfig` entry to the `AGENTS` array in `frontend/lib/agents.ts`, including `nextAgent` if it fits in the chain.
+**Critical pattern:** `CopilotClient` must be created and `client.start()` called *before* setting SSE headers, so startup errors return proper HTTP status codes.
 
-### Agent YAML structure
-```yaml
-name: my-agent
-displayName: My Agent
-model: gpt-4.1
-tools: [grep, glob, view, bash]
-prompt: |
-  System prompt here. Use {{cwd}} for working directory reference.
-```
+## Adding a New Agent
 
-## SSE Streaming Protocol
+Three files must be updated:
 
-`POST /api/agent/run` body: `{ agentSlug, prompt, repoPath, context? }`
-
-The response stream emits:
-- `event: chunk` / `data: <token>` — incremental content
-- `event: done` — stream finished
-- `event: error` / `data: <message>` — failure
-
-`CopilotClient` must be created and `client.start()` called **before** setting SSE headers, so startup errors return proper HTTP status codes (see `backend/src/routes/agent.ts`).
-
-## Agent Handoff Pattern
-
-When a user clicks "Send to [next agent]", the last assistant message is stored in `sessionStorage` under key `web_spec_handoff_<nextSlug>`. The target agent page reads this on mount and prepends it to the session as a `📎 Context from previous agent:` prefixed assistant message, injected into `context` on the `/api/agent/run` request.
+1. **`backend/agents/<slug>.agent.yaml`** — agent config with `name`, `displayName`, `model`, `tools`, `prompt`.
+2. **`backend/src/lib/agentFileMap.ts`** — add slug → filename to `AGENT_FILE_MAP`.
+3. **`frontend/lib/agents.ts`** — add `AgentConfig` entry to `AGENTS` array with `nextAgent` if it chains.
 
 ## Frontend Conventions
 
-- All components using state, effects, or context must have `"use client"` at the top.
-- Global state (PAT, username, activeRepo) is read/written only through `useApp()` from `frontend/lib/context.tsx`.
-- `localStorage` interactions are isolated in `frontend/lib/storage.ts`; always guard with `isBrowser()` for SSR safety.
-- Tailwind uses a custom dark theme — use semantic tokens like `bg-surface-2`, `text-text-primary`, `border-border`, `text-accent` instead of raw color classes.
+- All components using state/effects/context must have `"use client"` at the top.
+- Global state is read/written only through `useApp()` from `frontend/lib/context.tsx`.
+- `localStorage` access is isolated in `frontend/lib/storage.ts`; always guard with `isBrowser()` for SSR safety.
+- Use the custom Tailwind theme tokens (`bg-surface-2`, `text-text-primary`, `border-border`, `text-accent`, `text-text-secondary`, `bg-background`, `text-muted`) — not raw color classes. See `frontend/tailwind.config.ts` for all tokens.
+- Icons come from `lucide-react`. Markdown rendering uses `react-markdown` + `remark-gfm`.
 
-## Environment & Configuration
+## Backend Conventions
 
-- `WORK_DIR` env var overrides the default `~/work` base path for cloned repos (backend).
-- The GitHub PAT is passed with every API call from the browser — it is never stored server-side.
-- CORS is open in dev; the backend reads `PORT` (default `3001`) from env.
+- ESM modules (`"type": "module"` in package.json) — all local imports use `.js` extension (e.g., `import { foo } from "./lib/bar.js"`).
+- Express routers are exported as named constants (e.g., `export const agentRouter = Router()`).
+- Errors during SDK startup return proper HTTP status codes; errors during streaming are sent as SSE `error` events.
+
+## Environment Variables
+
+Set in `backend/.env`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3001` | Express listen port |
+| `WORK_DIR` | `~/work` | Base path for cloned repos |
+
+## Specs Workflow
+
+Feature specs are generated under `specs/{feature-name}/` using the `feature-spec-generator` agent (`.github/agents/feature-spec-generator.agent.md`). Implementation is handled by the `spec-developer` agent which reads the spec, sequences stories by dependencies, implements each one, then validates with build + lint.

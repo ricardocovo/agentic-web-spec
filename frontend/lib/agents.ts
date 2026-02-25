@@ -13,6 +13,7 @@ export interface AgentConfig {
 export interface AgentAction {
   label: string;
   description: string;
+  icon?: React.ComponentType<{ size?: number | string; className?: string }>;
   onClick: () => void;
 }
 
