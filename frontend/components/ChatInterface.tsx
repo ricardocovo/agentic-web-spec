@@ -235,28 +235,24 @@ export function ChatInterface({
         <div ref={bottomRef} />
       </div>
 
-      {/* Handoff button */}
-      {showHandoff && (
-        <div className="py-3 flex justify-center">
-          <button
-            onClick={onHandoff}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
-            style={{
-              borderColor: `${nextAgent.iconColor}40`,
-              backgroundColor: `${nextAgent.iconColor}10`,
-              color: nextAgent.iconColor,
-            }}
-          >
-            Send to {nextAgent.name}
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      {hasMessages && !isStreaming && agentActions && agentActions.length > 0 && (
-        <div className="py-3 flex justify-center gap-3">
-          {agentActions.map((action) => (
+      {/* Handoff + Action buttons */}
+      {hasMessages && !isStreaming && (showHandoff || (agentActions && agentActions.length > 0)) && (
+        <div className="py-3 flex justify-center gap-3 flex-wrap">
+          {showHandoff && (
+            <button
+              onClick={onHandoff}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
+              style={{
+                borderColor: `${nextAgent.iconColor}40`,
+                backgroundColor: `${nextAgent.iconColor}10`,
+                color: nextAgent.iconColor,
+              }}
+            >
+              Send to {nextAgent.name}
+              <ArrowRight size={14} />
+            </button>
+          )}
+          {agentActions?.map((action) => (
             <button
               key={action.label}
               onClick={action.onClick}
