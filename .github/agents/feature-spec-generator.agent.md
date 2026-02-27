@@ -1,5 +1,5 @@
 ---
-description: 'Generates a complete feature specification and implementation plan for a given feature. Creates a spec file under /specs/{feature-name}/spec.md and individual user story files under /specs/{feature-name}/{user-story-short-name}.md. Covers requirements, design considerations, acceptance criteria, and task breakdowns.'
+description: 'Generates a complete feature specification and implementation plan for a given feature. Creates a spec file under /specs/{NNNN}-{feature-name}/spec.md and individual user story files under /specs/{NNNN}-{feature-name}/{user-story-short-name}.md. Covers requirements, design considerations, acceptance criteria, and task breakdowns.'
 model: Claude Sonnet 4.6 (copilot)
 tools: [execute, read, edit, search, web, agent, todo]
 ---
@@ -19,15 +19,28 @@ Once you have that information, perform the following steps:
 
 ---
 
+## Step 0 — Determine the Next Spec Number
+
+Spec folders follow the pattern `specs/{NNNN}-{feature-name}/` where `{NNNN}` is a zero-padded 4-digit sequence number (e.g. `0001`, `0012`).
+
+Before creating any files:
+1. List existing directories under `specs/` that match the `NNNN-*` pattern.
+2. Find the highest number currently in use.
+3. Increment by 1 to get `{NNNN}` for this new spec.
+
+Use `{NNNN}-{feature-name}` as the folder name for all subsequent steps (e.g. `specs/0013-my-feature/`).
+
+---
+
 ## Step 1 — Create the Feature Specification File
 
-Create a file at `specs/{feature-name}/spec.md` with the content below.
+Create a file at `specs/{NNNN}-{feature-name}/spec.md` with the content below.
 
 Use the sections exactly as defined. Fill in each section based on the feature description and your analysis of the codebase and project context.
 
 ---
 
-### Template: `specs/{feature-name}/spec.md`
+### Template: `specs/{NNNN}-{feature-name}/spec.md`
 
 ```markdown
 # Feature: {Feature Name}
@@ -137,13 +150,13 @@ For each story, determine:
 
 ## Step 3 — Create Individual User Story Files
 
-For each user story, create a file at `specs/{feature-name}/stories/{user-story-short-name}.md` using the template below.
+For each user story, create a file at `specs/{NNNN}-{feature-name}/stories/{user-story-short-name}.md` using the template below.
 
 Tasks within each story should be single-line action items (start with a verb).
 
 ---
 
-### Template: `specs/{feature-name}/stories/{user-story-short-name}.md`
+### Template: `specs/{NNNN}-{feature-name}/stories/{user-story-short-name}.md`
 
 ```markdown
 # User Story: {Title}
@@ -194,14 +207,14 @@ Tasks within each story should be single-line action items (start with a verb).
 
 ## Step 4 — Update the Spec File's User Stories Table
 
-After creating all user story files, go back to `specs/{feature-name}/spec.md` and fill in the **User Stories** table at the bottom with the title and filename of each created story.
+After creating all user story files, go back to `specs/{NNNN}-{feature-name}/spec.md` and fill in the **User Stories** table at the bottom with the title and filename of each created story.
 
 ---
 
 ## Final Checklist
 
-- [ ] `specs/{feature-name}/spec.md` created and fully filled in
-- [ ] Each user story has its own file under `specs/{feature-name}/stories`
+- [ ] `specs/{NNNN}-{feature-name}/spec.md` created and fully filled in
+- [ ] Each user story has its own file under `specs/{NNNN}-{feature-name}/stories`
 - [ ] The User Stories table in `spec.md` links to all story files
 - [ ] All section headings are present in every file
 - [ ] Tasks in each story are single-line, action-oriented items
