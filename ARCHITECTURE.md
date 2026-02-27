@@ -201,3 +201,29 @@ The Knowledge Base page lists the user's Copilot Spaces by creating a short-live
 Users can select one or more Copilot Spaces directly from the chat input area using the `SpaceSelector` component. The selected space references (`owner/name` strings) are passed as `spaceRefs: string[]` in `POST /api/agent/run` requests. The backend conditionally attaches the `copilot_spaces` MCP server to the agent session and appends a system prompt instruction listing all selected spaces, instructing the agent to call `get_copilot_space` for each one. The legacy single `spaceRef` parameter is still accepted for backward compatibility and normalized into the array internally.
 
 MCP permission requests (`kind: "mcp"`) are auto-approved in both the KDB listing and agent sessions. Non-MCP permission requests are denied by rules.
+
+---
+
+## WorkIQ Context Integration (Microsoft 365)
+
+Users can search their Microsoft 365 data (emails, meetings, documents, Teams messages, people) from any agent chat page and attach results as hidden context.
+
+### Architecture
+
+```
+Frontend (ChatInterface)                   Backend
+┌──────────────────────┐          ┌──────────────────────────┐
+│ WorkIQ button         │          │ GET  /api/workiq/status   │
+│ WorkIQModal (search)  │────────> │ POST /api/workiq/search   │
+│ WorkIQContextChips    │          │         │                  │
+│     ↓ onSend          │          │    workiq-client.ts        │
+│ workiqContext field    │────────> │    (MCP stdio singleton)   │
+│  in /api/agent/run    │          │         │                  │
+└──────────────────────┘          │   workiq mcp (CLI)         │
+                                  └──────────────────────────┘
+```
+
+- **Backend**: `workiq-client.ts` manages a singleton MCP client that spawns `workiq mcp` via stdio transport. The `workiqRouter` (`routes/workiq.ts`) exposes `POST /search` and `GET /status` endpoints. The MCP process is lazy-started on first request and auto-restarts on crash.
+- **Frontend**: `WorkIQModal` provides search with 400ms debounce. `WorkIQContextChips` renders attached items as removable pills above the textarea. `lib/workiq.ts` caches availability status for 5 minutes.
+- **Context forwarding**: Selected items are passed as `workiqContext` in the `/api/agent/run` request body. The backend appends them to the system prompt as a labeled block after handoff context and before space instructions. Total WorkIQ context is capped at ~4000 characters.
+- **Graceful degradation**: If `workiq` CLI is not installed, the status endpoint returns `{ available: false }` and the frontend hides the button entirely.

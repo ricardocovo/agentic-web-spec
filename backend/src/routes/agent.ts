@@ -27,13 +27,14 @@ function loadAgentConfig(slug: string): AgentFileConfig | null {
 
 // POST /api/agent/run  (SSE streaming)
 agentRouter.post("/run", async (req: Request, res: Response) => {
-  const { agentSlug, prompt, repoPath, context, spaceRef, spaceRefs: rawSpaceRefs } = req.body as {
+  const { agentSlug, prompt, repoPath, context, spaceRef, spaceRefs: rawSpaceRefs, workiqContext } = req.body as {
     agentSlug: string;
     prompt: string;
     repoPath: string;
     context?: string;
     spaceRef?: string;
     spaceRefs?: string[];
+    workiqContext?: { type: string; title: string; summary: string }[];
   };
 
   // Normalize: prefer spaceRefs array; fall back to wrapping legacy spaceRef
@@ -66,9 +67,32 @@ agentRouter.post("/run", async (req: Request, res: Response) => {
     ? `\n\nYou have access to these Copilot Spaces: ${spaceRefs.map(s => `"${s}"`).join(", ")}. Use the github-get_copilot_space tool for each space to retrieve its context and incorporate it into your analysis.`
     : "";
 
+  // Build WorkIQ context block if present
+  let workiqBlock = "";
+  if (workiqContext && workiqContext.length > 0) {
+    const MAX_WORKIQ_CHARS = 4000;
+    const formatted = workiqContext.map(
+      (i) => `[${i.type}] ${i.title}: ${i.summary}`
+    );
+    let joined = formatted.join("\n");
+    if (joined.length > MAX_WORKIQ_CHARS) {
+      // Truncate proportionally
+      const perItem = Math.floor(MAX_WORKIQ_CHARS / workiqContext.length) - 30;
+      joined = workiqContext
+        .map((i) => {
+          const summary = i.summary.length > perItem ? i.summary.slice(0, perItem) + "... (truncated)" : i.summary;
+          return `[${i.type}] ${i.title}: ${summary}`;
+        })
+        .join("\n");
+    }
+    workiqBlock = `\n\nWorkIQ Context (Microsoft 365 data provided by the user):\n${joined}`;
+    console.log(`[agent:${agentSlug}] WorkIQ context: ${workiqContext.length} items, ${workiqBlock.length} chars`);
+  }
+
+  // Prompt construction order: basePrompt + handoffContext + workiqContext + spaceInstruction + THINK_GUIDANCE
   const systemPrompt = (context
     ? `${agentConfig.prompt}\n\nPrevious context:\n${context}`
-    : agentConfig.prompt) + spaceInstruction + THINK_GUIDANCE;
+    : agentConfig.prompt) + workiqBlock + spaceInstruction + THINK_GUIDANCE;
 
   let client: CopilotClient | null = null;
 

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@github/copilot-sdk": "^0.1.25",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",

@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp, Sparkles, BrainCircuit } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
 import { AgentConfig, AgentAction } from "@/lib/agents";
 import { SpaceSelector } from "@/components/SpaceSelector";
+import { WorkIQModal, WorkIQResult } from "@/components/WorkIQModal";
+import { WorkIQContextChips } from "@/components/WorkIQContextChips";
+import { checkWorkIQStatus } from "@/lib/workiq";
 
 interface ChatInterfaceProps {
   agent: AgentConfig;
   messages: Message[];
-  onSend: (content: string, selectedSpaces: string[]) => Promise<void>;
+  onSend: (content: string, selectedSpaces: string[], workiqItems?: WorkIQResult[]) => Promise<void>;
   isStreaming: boolean;
   streamingContent: string;
   streamingReasoning?: string;
@@ -120,9 +123,17 @@ export function ChatInterface({
   const [input, setInput] = useState("");
   const [selectedSpaces, setSelectedSpaces] = useState<string[]>([]);
   const [isReasoningOpen, setIsReasoningOpen] = useState(true);
+  const [workiqAvailable, setWorkiqAvailable] = useState(false);
+  const [workiqModalOpen, setWorkiqModalOpen] = useState(false);
+  const [workiqItems, setWorkiqItems] = useState<WorkIQResult[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Check WorkIQ availability on mount
+  useEffect(() => {
+    checkWorkIQStatus().then(setWorkiqAvailable);
+  }, []);
 
   // Auto-collapse reasoning block when first answer chunk arrives
   useEffect(() => {
@@ -153,8 +164,10 @@ export function ChatInterface({
     const text = input.trim();
     if (!text || isStreaming || disabled) return;
     setInput("");
-    await onSend(text, selectedSpaces);
-  }, [input, isStreaming, disabled, onSend, selectedSpaces]);
+    const itemsToSend = workiqItems.length > 0 ? [...workiqItems] : undefined;
+    setWorkiqItems([]);
+    await onSend(text, selectedSpaces, itemsToSend);
+  }, [input, isStreaming, disabled, onSend, selectedSpaces, workiqItems]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -268,6 +281,10 @@ export function ChatInterface({
 
       {/* Input */}
       <div className="border-t border-border pt-4">
+        <WorkIQContextChips
+          items={workiqItems}
+          onRemove={(id) => setWorkiqItems((prev) => prev.filter((i) => i.id !== id))}
+        />
         <div className="flex gap-3 items-end">
           <div className="flex-1 relative">
             <textarea
@@ -297,6 +314,22 @@ export function ChatInterface({
               </button>
             )}
           </div>
+          {workiqAvailable && (
+            <button
+              type="button"
+              onClick={() => setWorkiqModalOpen(true)}
+              disabled={disabled || isStreaming}
+              className="relative w-10 h-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              aria-label="Search Microsoft 365"
+            >
+              <BrainCircuit size={18} />
+              {workiqItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                  {workiqItems.length}
+                </span>
+              )}
+            </button>
+          )}
           <SpaceSelector
             onSelectionChange={setSelectedSpaces}
             disabled={disabled || isStreaming}
@@ -318,6 +351,16 @@ export function ChatInterface({
           Press Enter to send · Shift+Enter for new line
         </p>
       </div>
+      {workiqModalOpen && (
+        <WorkIQModal
+          onClose={() => setWorkiqModalOpen(false)}
+          onAttach={(items) => setWorkiqItems((prev) => {
+            const existingIds = new Set(prev.map((i) => i.id));
+            const newItems = items.filter((i) => !existingIds.has(i.id));
+            return [...prev, ...newItems];
+          })}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { getAgent, getNextAgent } from "@/lib/agents";
 import { ChatInterface } from "@/components/ChatInterface";
 import { ActionPanel } from "@/components/ActionPanel";
 import type { AgentAction } from "@/lib/agents";
+import type { WorkIQResult } from "@/components/WorkIQModal";
 import {
   createSession,
   addMessageToSession,
@@ -100,7 +101,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   }, [params.slug, activeRepo?.fullName]);
 
   const handleSend = useCallback(
-    async (content: string, selectedSpaces: string[]) => {
+    async (content: string, selectedSpaces: string[], workiqItems?: WorkIQResult[]) => {
       if (!session || !activeRepo) return;
 
       // Add user message
@@ -148,6 +149,11 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
             repoPath: activeRepo.localPath,
             context: context || undefined,
             spaceRefs: selectedSpaces.length > 0 ? selectedSpaces : undefined,
+            workiqContext: workiqItems?.map((item) => ({
+              type: item.type,
+              title: item.title,
+              summary: item.summary,
+            })),
           }),
         });
 
