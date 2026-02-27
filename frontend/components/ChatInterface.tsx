@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
 import { AgentConfig, AgentAction } from "@/lib/agents";
 import { SpaceSelector } from "@/components/SpaceSelector";
+import { useApp } from "@/lib/context";
 
 interface ChatInterfaceProps {
   agent: AgentConfig;
@@ -123,6 +124,7 @@ export function ChatInterface({
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { featureFlags } = useApp();
 
   // Auto-collapse reasoning block when first answer chunk arrives
   useEffect(() => {
@@ -297,10 +299,12 @@ export function ChatInterface({
               </button>
             )}
           </div>
-          <SpaceSelector
-            onSelectionChange={setSelectedSpaces}
-            disabled={disabled || isStreaming}
-          />
+          {featureFlags.kdb && (
+            <SpaceSelector
+              onSelectionChange={setSelectedSpaces}
+              disabled={disabled || isStreaming}
+            />
+          )}
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isStreaming || disabled}

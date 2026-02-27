@@ -34,11 +34,28 @@ export interface ActiveRepo {
   clonedAt: number;
 }
 
+export interface FeatureFlags {
+  kdb: boolean;
+  workiq: boolean;
+  generatePrd: boolean;
+  generateTechSpecs: boolean;
+  createGithubIssues: boolean;
+}
+
+export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
+  kdb: true,
+  workiq: true,
+  generatePrd: true,
+  generateTechSpecs: true,
+  createGithubIssues: true,
+};
+
 const SESSIONS_KEY = "web_spec_sessions";
 const ACTIVITY_KEY = "web_spec_activity";
 const REPO_KEY = "web_spec_active_repo";
 const PAT_KEY = "web_spec_pat";
 const USERNAME_KEY = "web_spec_username";
+const FEATURE_FLAGS_KEY = "web_spec_feature_flags";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -193,6 +210,20 @@ export function getActivity(): ActivityEvent[] {
   if (!isBrowser()) return [];
   const raw = localStorage.getItem(ACTIVITY_KEY);
   return raw ? (JSON.parse(raw) as ActivityEvent[]) : [];
+}
+
+// --- Feature Flags ---
+
+export function getFeatureFlags(): FeatureFlags {
+  if (!isBrowser()) return { ...DEFAULT_FEATURE_FLAGS };
+  const raw = localStorage.getItem(FEATURE_FLAGS_KEY);
+  if (!raw) return { ...DEFAULT_FEATURE_FLAGS };
+  return { ...DEFAULT_FEATURE_FLAGS, ...(JSON.parse(raw) as Partial<FeatureFlags>) };
+}
+
+export function saveFeatureFlags(flags: FeatureFlags): void {
+  if (!isBrowser()) return;
+  localStorage.setItem(FEATURE_FLAGS_KEY, JSON.stringify(flags));
 }
 
 export function addActivity(event: Omit<ActivityEvent, "id" | "createdAt">): void {
