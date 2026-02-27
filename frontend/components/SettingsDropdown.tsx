@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Key, SlidersHorizontal } from "lucide-react";
+import { Settings, Key, SlidersHorizontal, Flag } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 interface SettingsDropdownProps {
@@ -53,6 +53,7 @@ export function SettingsDropdown({ onOpenPAT }: SettingsDropdownProps) {
   }, [open, close]);
 
   const isAdmin = pathname.startsWith("/admin");
+  const isSettings = pathname.startsWith("/settings");
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -97,6 +98,18 @@ export function SettingsDropdown({ onOpenPAT }: SettingsDropdownProps) {
           >
             <SlidersHorizontal size={16} />
             Admin
+          </Link>
+          <Link
+            href="/settings"
+            role="menuitem"
+            tabIndex={0}
+            className={`flex items-center gap-2.5 px-3 py-2 text-sm hover:text-text-primary hover:bg-background transition-colors ${
+              isSettings ? "text-accent" : "text-text-secondary"
+            }`}
+            onClick={() => setOpen(false)}
+          >
+            <Flag size={16} />
+            Feature Flags
           </Link>
         </div>
       )}

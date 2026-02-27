@@ -6,21 +6,27 @@ import { Bot, Database, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import { PATModal } from "@/components/PATModal";
 import { SettingsDropdown } from "@/components/SettingsDropdown";
+import { useApp } from "@/lib/context";
 
 const NAV_LINKS = [
-  { href: "/", label: "Agents", icon: Bot },
-  { href: "/kdb", label: "KDB", icon: Database },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Agents", icon: Bot, flag: null },
+  { href: "/kdb", label: "KDB", icon: Database, flag: "kdb" as const },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, flag: null },
 ];
 
 export function Nav() {
   const pathname = usePathname();
   const [showPAT, setShowPAT] = useState(false);
+  const { featureFlags } = useApp();
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/" || pathname.startsWith("/agents");
     return pathname.startsWith(href);
   }
+
+  const visibleLinks = NAV_LINKS.filter(
+    ({ flag }) => flag === null || featureFlags[flag]
+  );
 
   return (
     <>
@@ -34,7 +40,7 @@ export function Nav() {
 
           {/* Nav links */}
           <nav className="flex items-center gap-1">
-            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
+            {visibleLinks.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
