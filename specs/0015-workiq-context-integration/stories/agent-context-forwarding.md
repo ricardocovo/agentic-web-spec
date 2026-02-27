@@ -19,7 +19,7 @@ This follows the same pattern as existing handoff context — the context is inv
 - [ ] Given multiple WorkIQ items are included, when the system prompt is built, then each item is formatted as `[Type] Title: Summary` on its own line, under a "WorkIQ Context:" header.
 - [ ] Given the `workiqContext` field is absent or empty, when the system prompt is built, then no WorkIQ section is appended (no empty headers).
 - [ ] Given WorkIQ context combined with other context exceeds a reasonable limit, when the system prompt is built, then individual item summaries are truncated to keep total WorkIQ context under ~4000 characters.
-- [ ] Given the agent response is streamed back, when the user views the chat, then the WorkIQ context is not visible as a chat message — it was only in the system prompt.
+- [ ] Given the agent response is streamed back, when the user views the chat, then WorkIQ context messages remain visible as distinct purple-styled messages in the conversation, separate from the agent's response. The context is forwarded to the agent only via the `workiqContext` field in the system prompt — not via the regular conversation context.
 
 ## Tasks
 
@@ -50,4 +50,5 @@ This follows the same pattern as existing handoff context — the context is inv
 - The current system prompt construction in `agent.ts` (line 62) is: `basePrompt + "\n\nPrevious context:\n" + context + spaceInstruction + THINK_GUIDANCE`. WorkIQ context slots in between the handoff context and space instruction.
 - The format `[Type] Title: Summary` is designed to be easily parseable by the model and clearly indicates the source of each piece of context.
 - Total system prompt length should be monitored — with base prompt (~2000 chars), handoff context (variable), WorkIQ context (up to ~4000 chars), and space instructions, we should stay well within model context limits.
+- WorkIQ items ARE visible as conversation messages (with purple Briefcase styling), but they're excluded from the regular context string built from assistant messages. Instead, they're sent exclusively via the `workiqContext` field to avoid duplication.
 - Consider adding a comment in the code explaining the prompt construction order for future maintainers.

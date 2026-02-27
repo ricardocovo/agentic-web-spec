@@ -33,16 +33,18 @@ Product Managers and Engineering Leads using Web-Spec often need to reference in
 
 ## Functional Requirements
 
-1. The system shall expose a backend API endpoint (`POST /api/workiq/search`) that proxies search queries to the WorkIQ MCP server and returns categorized results
-2. The system shall display a WorkIQ button in the chat input toolbar on all agent pages, positioned between the prompt textarea (and its quick-prompt sparkle button) and the SpaceSelector button
-3. The system shall open a modal when the WorkIQ button is clicked, containing a search input and a categorized results area
-4. The system shall categorize search results into tabs or sections: Emails, Meetings, Documents, Teams Messages, and People
-5. The system shall allow users to select one or more search results to attach as context
-6. The system shall insert selected WorkIQ item summaries as hidden context in the conversation — passed to the backend as part of the `context` field on `/api/agent/run`, not inserted into the prompt textarea
-7. The system shall display a visual indicator (badge/chip) near the input area showing how many WorkIQ items are attached
-8. The system shall allow users to remove individual attached WorkIQ items before sending
-9. The system shall append WorkIQ context to the agent system prompt in the backend, clearly labeled and separated from handoff context
-10. The system shall handle WorkIQ MCP server unavailability gracefully with user-facing error messages
+1. The system shall expose a backend API endpoint (`POST /api/workiq/search`) that proxies search queries to the WorkIQ MCP server, crafting a structured prompt requesting itemized results from the last 4 weeks, and returns parsed categorized results
+2. The system shall expose a backend API endpoint (`POST /api/workiq/detail`) that fetches full summary, transcript, or notes for a specific item from the WorkIQ MCP server
+3. The system shall display a WorkIQ button in the chat input toolbar on all agent pages, positioned between the prompt textarea (and its quick-prompt sparkle button) and the SpaceSelector button
+4. The system shall open a modal when the WorkIQ button is clicked, containing a search input and a categorized results area
+5. The system shall categorize search results into tabs or sections: Emails, Meetings, Documents, Teams Messages, and People
+6. The system shall allow users to select one or more search results to attach as context
+7. The system shall, when the user clicks "Attach", fetch full details (summary/transcript/notes) for each selected item via `POST /api/workiq/detail` before attaching
+8. The system shall display attached WorkIQ items as visible conversation messages (role: assistant) with a distinct purple `Briefcase` icon, purple-tinted border, and a "Work IQ Context" label — showing the full detail content rendered as markdown. These messages are persisted in the session alongside regular messages.
+9. The system shall pass attached WorkIQ items to the backend as the `workiqContext` field on `/api/agent/run`, while excluding WorkIQ messages from the regular conversation context to avoid duplication
+10. The system shall show a badge count on the WorkIQ toolbar button when items are attached
+11. The system shall append WorkIQ context to the agent system prompt in the backend, clearly labeled and separated from handoff context
+12. The system shall handle WorkIQ MCP server unavailability gracefully with user-facing error messages
 
 ## Non-Functional Requirements
 
@@ -60,15 +62,18 @@ Product Managers and Engineering Leads using Web-Spec often need to reference in
 - **Search modal**: Follows the `RepoSelectorModal` pattern — fixed overlay with `bg-black/60 backdrop-blur-sm`, max-width container, search input at top, scrollable categorized results below.
 - **Result categories**: Horizontal tab bar or segmented sections for Emails, Meetings, Documents, Teams Messages, People. Each result shows: title/subject, brief snippet, date, and source icon.
 - **Selection**: Checkbox or highlight-to-select pattern. Selected items show a checkmark. A "Attach N items" button at the bottom confirms selection and closes the modal.
-- **Context indicator**: Small pill/chip row above or below the textarea showing attached WorkIQ items (e.g., "📎 Meeting: Q4 Planning" with an × to remove). Similar to how file attachments appear in chat UIs.
+- **Context indicator**: When WorkIQ items are attached, they appear as conversation messages in the chat — rendered with a purple `Briefcase` avatar, purple-tinted border, and a "Work IQ Context" label. The message content shows the item title, type, date, and full detail fetched from WorkIQ, rendered as markdown. This replaces the original chip/pill approach, giving users full visibility into the context being sent to the agent.
 - **Empty/error states**: "No results found" message; "WorkIQ is not available" when the server is down; loading spinner during search.
 
 ## Technical Considerations
 
-- **WorkIQ MCP integration**: The backend spawns the WorkIQ MCP server via `workiq mcp` (stdio transport). This should be a singleton process managed with lifecycle hooks (start on first request, restart on crash). The MCP client sends `tools/call` with the search tool.
-- **Backend API**: New Express route at `POST /api/workiq/search` accepts `{ query: string }` and returns `{ results: WorkIQResult[] }` with categorized items. A health-check endpoint `GET /api/workiq/status` reports whether WorkIQ is available.
-- **Frontend state**: WorkIQ selected items are managed as component state in `ChatInterface` (or a new context provider). Selected items are an array of `{ id, type, title, summary }` objects. On send, these are serialized and merged into the `context` field alongside any existing handoff context.
-- **Context format**: WorkIQ context is formatted as a clearly labeled block appended to the system prompt: `\n\nWorkIQ Context:\n${items.map(i => `[${i.type}] ${i.title}: ${i.summary}`).join('\n')}`.
+- **WorkIQ MCP integration**: The backend spawns the WorkIQ MCP server via `workiq mcp` (stdio transport). This is a singleton process managed with lifecycle hooks (start on first request, restart on crash). The MCP server exposes two tools: `accept_eula` (must be called on first connection with `{ eulaUrl: "https://github.com/microsoft/work-iq-mcp" }`) and `ask_work_iq` (accepts `{ question: string }`). Tool names and parameter names are discovered dynamically at runtime via `client.listTools()`.
+- **Two-phase query flow**: The search endpoint wraps the user's query in a structured prompt requesting itemized results from the last 4 weeks (type, title, date, one-sentence description only). When the user clicks "Attach", a second call via `POST /api/workiq/detail` fetches full summary/transcript/notes for each selected item. This avoids bloating the initial search with full content.
+- **Backend API**: Three Express endpoints: `POST /api/workiq/search` accepts `{ query: string }` and returns parsed `{ results: WorkIQResult[] }`; `POST /api/workiq/detail` accepts `{ title: string, type: string }` and returns `{ detail: string }` with full content; `GET /api/workiq/status` reports availability. All are proxied through Next.js Route Handlers (not rewrites) at `/api/backend/workiq/*` to support long timeouts (90s).
+- **Response parsing**: WorkIQ returns natural language markdown, not structured JSON. The backend parses numbered/bulleted lists into individual `WorkIQResult` items by detecting item headers and extracting type/date/summary metadata lines. Falls back to a single document result if parsing finds no items.
+- **Frontend state**: WorkIQ selected items are managed as component state in `ChatInterface`. On attach, items are added as visible assistant messages (prefix `📎 Work IQ Context:\n\n`) via an `onAddWorkIQMessage` callback to the parent page. Items are also tracked in a `workiqItems` state array for the `workiqContext` API field. On send, the items are serialized into `workiqContext` on `/api/agent/run`, while WorkIQ messages are excluded from the regular conversation context to avoid duplication.
+- **Context format**: WorkIQ context is formatted as a clearly labeled block appended to the system prompt: `\n\nWorkIQ Context:\n${items.map(i => `[${i.type}] ${i.title}: ${i.summary}`).join('\n')}`. The `summary` field contains the full detail text fetched at attach time.
+- **Timeouts**: WorkIQ queries M365 Copilot which typically takes 30-40 seconds. The MCP call timeout is 60s, and the Next.js Route Handler proxy timeout is 90s.
 - **Backend ESM**: All new backend files use `.js` extensions in imports, consistent with existing ESM patterns.
 - **Frontend styling**: All new components use existing Tailwind theme tokens (`bg-surface`, `bg-surface-2`, `text-text-primary`, `border-border`, `text-accent`, etc.) and lucide-react icons.
 - **MCP server singleton**: Use a module-level variable to hold the MCP client instance. Lazy-initialize on first search request. Handle process exit and restart.
@@ -103,8 +108,8 @@ Product Managers and Engineering Leads using Web-Spec often need to reference in
 
 ## Open Questions
 
-- [ ] What is the exact tool name and schema for the WorkIQ MCP search tool? (Need to inspect `workiq mcp` tool list)
-- [ ] Does WorkIQ return structured categories per result, or do we need to classify results client-side?
+- [x] What is the exact tool name and schema for the WorkIQ MCP search tool? → **Resolved**: Two tools: `accept_eula` (requires `{ eulaUrl: string }`) and `ask_work_iq` (requires `{ question: string }`). Tool names are discovered dynamically via `client.listTools()`.
+- [x] Does WorkIQ return structured categories per result, or do we need to classify results client-side? → **Resolved**: WorkIQ returns natural language markdown, not structured JSON. The backend parses the response into itemized results and classifies types by keyword matching.
 - [ ] What is the maximum summary length WorkIQ returns per item, and should we truncate further?
 - [ ] Should we support "deep link" back to the original M365 item (e.g., open the email in Outlook)?
 - [ ] Is there a rate limit on the WorkIQ MCP server, and should we implement request queuing?

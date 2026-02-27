@@ -31,7 +31,7 @@ If WorkIQ becomes unavailable mid-session (e.g., the MCP server crashes and can'
 - [ ] Ensure the status check does not block rendering — the WorkIQ button area should render as empty initially and appear when status is confirmed
 - [ ] Handle fetch errors gracefully — if the status endpoint is unreachable, default to `available: false`
 - [ ] Log the `reason` field from the status response to `console.debug` for developer debugging
-- [ ] Add a Next.js API rewrite or proxy rule to forward `/api/backend/workiq/*` to `http://localhost:3001/api/workiq/*` (check existing rewrite patterns in `next.config.js` or `next.config.mjs`)
+- [x] WorkIQ API routes use dedicated Next.js Route Handler proxies at `frontend/app/api/backend/workiq/*/route.ts` (not the generic `next.config.mjs` rewrite) to support long timeouts. The status check uses the existing rewrite since it's fast.
 
 ## Dependencies
 
@@ -46,5 +46,5 @@ If WorkIQ becomes unavailable mid-session (e.g., the MCP server crashes and can'
 ## Notes
 
 - The existing `SpaceSelector` component lazy-loads its data on mount but doesn't have a separate "availability" check — it just fails gracefully if no spaces are returned. WorkIQ needs an explicit availability check because the entire button should be hidden if WorkIQ isn't installed, to avoid confusing users.
-- The frontend proxy pattern should match existing patterns. Check `next.config.mjs` for how `/api/backend/*` is proxied to `localhost:3001`. The WorkIQ routes should follow the same pattern.
+- The `/api/backend/workiq/status` can use the generic Next.js rewrite from `next.config.mjs` since it's a fast endpoint. The search and detail endpoints use dedicated Route Handlers with 90s timeouts.
 - Consider using `SWR` or a simple fetch-with-cache pattern. Given the existing codebase doesn't use SWR, a manual cache in a module-level variable is more consistent.

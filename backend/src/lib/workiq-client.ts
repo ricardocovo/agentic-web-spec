@@ -86,7 +86,7 @@ async function ensureClient(): Promise<Client> {
   return client;
 }
 
-export async function search(query: string): Promise<WorkIQResult[]> {
+async function callWorkIQ(question: string, timeoutMs = 60_000): Promise<string> {
   let mcpClient: Client;
   try {
     mcpClient = await ensureClient();
@@ -99,9 +99,8 @@ export async function search(query: string): Promise<WorkIQResult[]> {
     mcpClient = await ensureClient();
   }
 
-  const timeoutMs = 60_000;
   const result = await Promise.race([
-    mcpClient.callTool({ name: searchToolName!, arguments: { [searchParamName]: query } }),
+    mcpClient.callTool({ name: searchToolName!, arguments: { [searchParamName]: question } }),
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("WorkIQ search timed out")), timeoutMs)
     ),
@@ -114,42 +113,148 @@ export async function search(query: string): Promise<WorkIQResult[]> {
           .filter((c: { type: string }) => c.type === "text")
           .map((c: { text: string }) => c.text)
           .join("")
-      : "WorkIQ search failed";
+      : "WorkIQ request failed";
     throw new Error(errorText);
   }
 
-  // Parse MCP tool result into WorkIQResult[]
-  const content = result.content;
-  if (Array.isArray(content)) {
-    // MCP returns content as array of { type: "text", text: string }
-    const textParts = content
+  if (Array.isArray(result.content)) {
+    return result.content
       .filter((c: { type: string }) => c.type === "text")
-      .map((c: { text: string }) => c.text);
-    const joined = textParts.join("");
-    try {
-      const parsed = JSON.parse(joined);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: Record<string, unknown>, idx: number) => ({
-          id: String(item.id ?? `workiq-${idx}`),
-          type: normalizeType(String(item.type ?? "document")),
-          title: String(item.title ?? item.subject ?? "Untitled"),
-          summary: String(item.summary ?? item.snippet ?? item.description ?? ""),
-          date: item.date ? String(item.date) : undefined,
-          sourceUrl: item.sourceUrl ?? item.url ? String(item.sourceUrl ?? item.url) : undefined,
-        }));
-      }
-    } catch {
-      // Not JSON — return as single document result
-    }
-    return textParts.map((text: string, idx: number) => ({
-      id: `workiq-${idx}`,
-      type: "document" as const,
-      title: text.slice(0, 80),
-      summary: text.slice(0, 500),
-    }));
+      .map((c: { text: string }) => c.text)
+      .join("");
   }
 
-  return [];
+  return "";
+}
+
+export async function search(query: string): Promise<WorkIQResult[]> {
+  const structuredPrompt =
+    `${query} (from the last 4 weeks). ` +
+    `List each result as a numbered item with *Type, *Title, and *Date fields.`;
+
+  const text = await callWorkIQ(structuredPrompt, 90_000);
+  console.log("[workiq] Raw search response:\n", text.slice(0, 1000));
+  return parseItemizedResponse(text);
+}
+
+export async function getDetail(itemTitle: string, itemType: string): Promise<string> {
+  const typeHints: Record<string, string> = {
+    email: "Provide the full email content, including sender, recipients, and body.",
+    meeting: "Provide the meeting summary, transcript, or notes if available. Include attendees and key discussion points.",
+    document: "Provide a detailed summary of the document contents.",
+    teams_message: "Provide the full message thread and context.",
+    person: "Provide relevant recent interactions and context about this person.",
+  };
+
+  const hint = typeHints[itemType] || "Provide a detailed summary.";
+  const detailPrompt =
+    `I need the full details for this ${itemType}: "${itemTitle}"\n\n${hint}\n\n` +
+    `Focus on the most recent instance from the last 4 weeks.`;
+
+  return await callWorkIQ(detailPrompt);
+}
+
+function parseItemizedResponse(text: string): WorkIQResult[] {
+  const results: WorkIQResult[] = [];
+  const lines = text.split("\n");
+  let currentItem: { title: string; type: string; date: string; summary: string; sourceUrl?: string } | null = null;
+  let itemIndex = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Detect numbered item headers like "1. **Title**", "- **Title**", "### 1) Title"
+    const numberedMatch = trimmed.match(/^(?:#{1,4}\s*)?(?:\*\*)?(\d+)[.)]\s*\*?\*?\s*(.+)/);
+    const boldHeaderMatch = !numberedMatch ? trimmed.match(/^[-•]\s*\*\*(.+?)\*\*/) : null;
+
+    if (numberedMatch || boldHeaderMatch) {
+      // Save previous item
+      if (currentItem) {
+        results.push(buildResult(currentItem, itemIndex++));
+      }
+      const rawTitle = (numberedMatch ? numberedMatch[2] : boldHeaderMatch![1])
+        .replace(/\*\*/g, "").replace(/\[.*?\]\(.*?\)/g, "").trim();
+      currentItem = { title: rawTitle, type: "document", date: "", summary: "" };
+    } else if (currentItem && trimmed) {
+      // Parse metadata lines within an item (e.g. "*Type: Meeting", "- Title: ...", "Type: ...")
+      const lower = trimmed.toLowerCase().replace(/^\*+\s*/, "").replace(/^[-•]\s*/, "");
+
+      if (lower.startsWith("type:")) {
+        currentItem.type = extractValue(trimmed);
+      } else if (lower.startsWith("title:") || lower.startsWith("subject:")) {
+        // Override the header title with the explicit title metadata
+        const val = extractValue(trimmed);
+        if (val) currentItem.title = val;
+      } else if (lower.startsWith("date:") || lower.startsWith("when:") || lower.startsWith("time:")) {
+        currentItem.date = extractValue(trimmed);
+      } else if (lower.startsWith("description:") || lower.startsWith("summary:") || lower.startsWith("snippet:")) {
+        const val = extractValue(trimmed);
+        if (val) currentItem.summary = val;
+      } else if (!currentItem.summary) {
+        // First non-metadata line becomes the summary
+        const cleaned = trimmed.replace(/^[-•*]\s*/, "").replace(/\*\*/g, "").trim();
+        if (cleaned && !cleaned.startsWith("---")) {
+          currentItem.summary = cleaned;
+        }
+      }
+    }
+  }
+
+  // Don't forget the last item
+  if (currentItem) {
+    results.push(buildResult(currentItem, itemIndex));
+  }
+
+  // Fallback: if parsing found nothing, return the whole text as a single result
+  if (results.length === 0 && text.trim()) {
+    return [{
+      id: "workiq-0",
+      type: "document",
+      title: text.slice(0, 80).replace(/\n/g, " "),
+      summary: text.slice(0, 500),
+    }];
+  }
+
+  return results;
+}
+
+function extractValue(line: string): string {
+  // Strip leading markdown (bullets, asterisks, bold) and the key label, keeping only the value
+  return line
+    .replace(/^[-•*_\s]+/, "")        // strip leading bullets/asterisks/spaces
+    .replace(/^\*?\*?\w+[:\s*]+/i, "") // strip key label like "Type:", "*Title:", etc.
+    .replace(/\*\*/g, "")             // strip bold markers
+    .trim();
+}
+
+function buildResult(item: { title: string; type: string; date: string; summary: string; sourceUrl?: string }, idx: number): WorkIQResult {
+  let type = normalizeType(item.type);
+  // If type is still the default "document", try to infer from title context
+  if (type === "document") {
+    type = inferTypeFromTitle(item.title);
+  }
+  return {
+    id: `workiq-${idx}`,
+    type,
+    title: item.title.slice(0, 120),
+    summary: item.summary.slice(0, 300),
+    date: item.date || undefined,
+    sourceUrl: item.sourceUrl,
+  };
+}
+
+function inferTypeFromTitle(title: string): WorkIQResult["type"] {
+  const lower = title.toLowerCase();
+  // Meeting indicators
+  if (lower.includes("sync") || lower.includes("standup") || lower.includes("stand-up") ||
+      lower.includes("1:1") || lower.includes("1-on-1") || lower.includes("retrospective") ||
+      lower.includes("retro") || lower.includes("sprint") || lower.includes("planning") ||
+      lower.includes("review") || lower.includes("townhall") || lower.includes("town hall") ||
+      lower.includes("kick-off") || lower.includes("kickoff") || lower.includes("check-in") ||
+      lower.includes("huddle") || lower.includes("all-hands") || lower.includes("demo") ||
+      lower.includes("workshop") || lower.includes("brainstorm") || lower.includes("office hours")) {
+    return "meeting";
+  }
+  return "document";
 }
 
 function normalizeType(raw: string): WorkIQResult["type"] {

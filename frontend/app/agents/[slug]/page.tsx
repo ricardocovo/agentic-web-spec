@@ -100,6 +100,26 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.slug, activeRepo?.fullName]);
 
+  const handleWorkIQAttach = useCallback(
+    (items: WorkIQResult[]) => {
+      if (!session) return;
+
+      for (const item of items) {
+        const label = item.type ? `[${item.type}] ` : "";
+        const content = `📎 Work IQ Context:\n\n**${label}${item.title}**${item.date ? ` — ${item.date}` : ""}\n\n${item.summary}`;
+        const updated = addMessageToSession(session.id, {
+          role: "assistant",
+          content,
+        });
+        if (updated) {
+          setMessages([...updated.messages]);
+          sessionRef.current = updated;
+        }
+      }
+    },
+    [session]
+  );
+
   const handleSend = useCallback(
     async (content: string, selectedSpaces: string[], workiqItems?: WorkIQResult[]) => {
       if (!session || !activeRepo) return;
@@ -121,15 +141,19 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         description: `${agent?.name}: "${content.slice(0, 60)}..."`,
       });
 
-      // Build context from previous messages, stripping the UI-only handoff prefix
+      // Build context from previous messages, stripping UI-only prefixes
       const HANDOFF_PREFIX = "📎 Context from previous agent:\n\n";
+      const WORKIQ_PREFIX = "📎 Work IQ Context:\n\n";
       const context = updated.messages
         .filter((m) => m.role === "assistant")
-        .map((m) =>
-          m.content.startsWith(HANDOFF_PREFIX)
-            ? m.content.slice(HANDOFF_PREFIX.length)
-            : m.content
-        )
+        .map((m) => {
+          if (m.content.startsWith(HANDOFF_PREFIX))
+            return m.content.slice(HANDOFF_PREFIX.length);
+          // Skip WorkIQ messages from context — they're sent via workiqContext
+          if (m.content.startsWith(WORKIQ_PREFIX)) return "";
+          return m.content;
+        })
+        .filter(Boolean)
         .join("\n\n");
 
       // Clean up session-resume and handoff keys now that context has been consumed
@@ -372,6 +396,7 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
         agent={agent}
         messages={messages}
         onSend={handleSend}
+        onAddWorkIQMessage={handleWorkIQAttach}
         isStreaming={isStreaming}
         streamingContent={streamingContent}
         streamingReasoning={streamingReasoning}

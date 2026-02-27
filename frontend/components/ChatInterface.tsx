@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp, Sparkles, BrainCircuit } from "lucide-react";
+import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp, Sparkles, BrainCircuit, Briefcase } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
 import { AgentConfig, AgentAction } from "@/lib/agents";
 import { SpaceSelector } from "@/components/SpaceSelector";
 import { WorkIQModal, WorkIQResult } from "@/components/WorkIQModal";
-import { WorkIQContextChips } from "@/components/WorkIQContextChips";
 import { checkWorkIQStatus } from "@/lib/workiq";
 import { useApp } from "@/lib/context";
 
@@ -16,6 +15,7 @@ interface ChatInterfaceProps {
   agent: AgentConfig;
   messages: Message[];
   onSend: (content: string, selectedSpaces: string[], workiqItems?: WorkIQResult[]) => Promise<void>;
+  onAddWorkIQMessage?: (items: WorkIQResult[]) => void;
   isStreaming: boolean;
   streamingContent: string;
   streamingReasoning?: string;
@@ -27,6 +27,7 @@ interface ChatInterfaceProps {
 
 function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
+  const isWorkIQ = !isUser && msg.content.startsWith("📎 Work IQ Context:");
   const [reasoningOpen, setReasoningOpen] = useState(false);
 
   return (
@@ -34,11 +35,13 @@ function MessageBubble({ msg }: { msg: Message }) {
       {/* Avatar */}
       <div
         className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-          isUser ? "bg-accent/20" : "bg-surface-2"
+          isUser ? "bg-accent/20" : isWorkIQ ? "bg-purple-500/20" : "bg-surface-2"
         }`}
       >
         {isUser ? (
           <User size={14} className="text-accent" />
+        ) : isWorkIQ ? (
+          <Briefcase size={14} className="text-purple-400" />
         ) : (
           <Bot size={14} className="text-text-secondary" />
         )}
@@ -49,6 +52,8 @@ function MessageBubble({ msg }: { msg: Message }) {
         className={`max-w-[80%] rounded-xl text-sm leading-relaxed ${
           isUser
             ? "px-4 py-3 border-l-4 border-accent bg-surface-2 text-text-primary rounded-tr-sm whitespace-pre-wrap"
+            : isWorkIQ
+            ? "bg-surface-2 border border-purple-500/30 text-text-primary rounded-tl-sm"
             : "bg-surface-2 border border-border text-text-primary rounded-tl-sm"
         }`}
       >
@@ -56,6 +61,12 @@ function MessageBubble({ msg }: { msg: Message }) {
           msg.content
         ) : (
           <>
+            {isWorkIQ && (
+              <div className="px-4 pt-2.5 pb-0 flex items-center gap-1.5 text-xs font-medium text-purple-400">
+                <Briefcase size={11} />
+                Work IQ Context
+              </div>
+            )}
             {msg.reasoning && (
               <div className="border-b border-border">
                 <button
@@ -78,7 +89,7 @@ function MessageBubble({ msg }: { msg: Message }) {
             )}
             <div className="md-content px-4 py-3">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {msg.content}
+                {isWorkIQ ? msg.content.replace(/^📎 Work IQ Context:\n\n/, "") : msg.content}
               </ReactMarkdown>
             </div>
           </>
@@ -113,6 +124,7 @@ export function ChatInterface({
   agent,
   messages,
   onSend,
+  onAddWorkIQMessage,
   isStreaming,
   streamingContent,
   streamingReasoning,
@@ -283,12 +295,6 @@ export function ChatInterface({
 
       {/* Input */}
       <div className="border-t border-border pt-4">
-        {featureFlags.workiq && (
-          <WorkIQContextChips
-            items={workiqItems}
-            onRemove={(id) => setWorkiqItems((prev) => prev.filter((i) => i.id !== id))}
-          />
-        )}
         <div className="flex gap-3 items-stretch">
           <div className="flex-1 relative">
             <textarea
@@ -360,11 +366,18 @@ export function ChatInterface({
       {workiqModalOpen && (
         <WorkIQModal
           onClose={() => setWorkiqModalOpen(false)}
-          onAttach={(items) => setWorkiqItems((prev) => {
-            const existingIds = new Set(prev.map((i) => i.id));
-            const newItems = items.filter((i) => !existingIds.has(i.id));
-            return [...prev, ...newItems];
-          })}
+          onAttach={(items) => {
+            // Store items for workiqContext when sending
+            setWorkiqItems((prev) => {
+              const existingIds = new Set(prev.map((i) => i.id));
+              const newItems = items.filter((i) => !existingIds.has(i.id));
+              return [...prev, ...newItems];
+            });
+            // Add as visible messages in the conversation
+            if (onAddWorkIQMessage) {
+              onAddWorkIQMessage(items);
+            }
+          }}
         />
       )}
     </div>

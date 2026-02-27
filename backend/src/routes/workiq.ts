@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { search, isAvailable, WorkIQResult } from "../lib/workiq-client.js";
+import { search, getDetail, isAvailable, WorkIQResult } from "../lib/workiq-client.js";
 
 export const workiqRouter = Router();
 
@@ -36,5 +36,30 @@ workiqRouter.get("/status", async (_req: Request, res: Response) => {
   } catch (err) {
     const reason = err instanceof Error ? err.message : "Unknown error";
     res.json({ available: false, reason });
+  }
+});
+
+// POST /detail — fetch full summary/transcript/notes for a specific item
+workiqRouter.post("/detail", async (req: Request, res: Response) => {
+  const { title, type } = req.body as { title?: string; type?: string };
+
+  if (!title || typeof title !== "string" || !title.trim()) {
+    res.status(400).json({ error: "A non-empty 'title' string is required" });
+    return;
+  }
+
+  try {
+    const detail = await getDetail(title.trim(), type?.trim() || "document");
+    res.json({ detail });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "WorkIQ detail fetch failed";
+    console.error("[workiq] detail error:", message);
+
+    if (message.includes("timed out")) {
+      res.status(504).json({ error: "WorkIQ detail request timed out" });
+      return;
+    }
+
+    res.status(502).json({ error: message });
   }
 });

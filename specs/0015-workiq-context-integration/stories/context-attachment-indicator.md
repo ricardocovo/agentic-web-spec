@@ -3,39 +3,38 @@
 ## Summary
 
 **As a** Product Manager or Engineering Lead,
-**I want** to see which WorkIQ items are attached to my message and be able to remove them,
-**So that** I have full control over what M365 context is sent to the agent.
+**I want** to see the full content of attached WorkIQ items as messages in the conversation,
+**So that** I have full visibility into what M365 context is being sent to the agent.
 
 ## Description
 
-After selecting WorkIQ items from the search modal, a visual indicator appears in the chat input area showing the attached items. Each item is displayed as a small chip/pill with its type icon, title (truncated), and a remove (×) button. This gives the user confidence that context is attached and allows them to remove items they don't want before sending.
+After selecting WorkIQ items from the search modal, the enriched detail content is displayed as visible conversation messages in the chat. Each message has a distinct purple `Briefcase` avatar, purple-tinted border, and a "Work IQ Context" label to differentiate it from agent responses. The message content includes the item title, type, date, and full detail rendered as markdown.
 
-When the message is sent, the attached items are included in the send payload and then cleared from the UI. The items are passed as hidden context — they don't appear in the textarea and are not visible as a regular chat message.
+Items are also tracked internally and passed as `workiqContext` when the user sends their next message. WorkIQ messages are excluded from the regular conversation context (built from assistant messages) to avoid duplication — they're sent to the backend exclusively via the `workiqContext` field.
+
+The toolbar button shows a badge count of attached items. A `WorkIQContextChips` component still exists in the codebase for potential future use but is no longer imported or rendered.
 
 ## Acceptance Criteria
 
-- [ ] Given one or more WorkIQ items are attached, when the user views the input area, then a row of chips/pills is displayed above the textarea showing each attached item with its type icon and truncated title.
-- [ ] Given a chip is displayed, when the user clicks the × button on it, then that item is removed from the attached items list and the chip disappears.
-- [ ] Given all chips are removed, when the user views the input area, then the chip row is hidden (no empty space).
-- [ ] Given WorkIQ items are attached, when the user sends a message, then the attached items are included in the send handler's payload.
-- [ ] Given a message has been sent with WorkIQ items, when the send completes, then the attached items are cleared from the UI.
-- [ ] Given WorkIQ items are attached, when the user views the chat, then there is no indication of the items in the prompt textarea itself — they are purely in the chip indicator area.
-- [ ] Given a chip is displayed, when the user hovers over it, then a tooltip shows the full title and a brief summary.
+- [x] Given one or more WorkIQ items are attached (with enriched detail summaries from the detail fetch), when the user views the chat, then each item appears as a visible assistant message with a purple `Briefcase` icon, purple-tinted border (`border-purple-500/30`), and a "Work IQ Context" label header.
+- [x] Given a WorkIQ context message is displayed, when the user views it, then the `📎 Work IQ Context:` prefix is stripped and the remaining content is rendered as markdown — showing the item title (bold, with type label and date), followed by the full detail text.
+- [x] Given WorkIQ items are attached, when the user sends a message, then the attached items are included in the send handler's payload as `workiqContext`.
+- [x] Given the context is built from previous messages, when WorkIQ messages (prefix `📎 Work IQ Context:`) are encountered, then they are excluded from the regular context string to avoid duplication with `workiqContext`.
+- [x] Given a message has been sent with WorkIQ items, when the send completes, then the `workiqItems` tracking state is cleared from the UI.
+- [x] Given WorkIQ context messages exist in the session, when the user reloads or resumes the session, then the messages are rendered with the distinct WorkIQ styling (detected by the `📎 Work IQ Context:` prefix).
 
 ## Tasks
 
-- [ ] Create a `WorkIQContextChips` component in `frontend/components/WorkIQContextChips.tsx` that renders a horizontal scrollable row of chips
-- [ ] Each chip renders: type icon (lucide: `Mail`/`Calendar`/`FileText`/`MessageSquare`/`User`), truncated title (max ~30 chars), and an `X` close button
-- [ ] Style chips with `bg-surface-2 border border-border rounded-lg px-2 py-1 text-xs text-text-primary` and hover effect `hover:border-accent`
-- [ ] Style the × button as `text-muted hover:text-text-primary` with `ml-1.5`
-- [ ] Add the `WorkIQContextChips` component to `ChatInterface.tsx`, rendered conditionally above the textarea when `workiqItems.length > 0`
-- [ ] Position the chips row in the existing `border-t border-border pt-4` container, above the `flex gap-3 items-end` row
-- [ ] Wire the chip remove handler to update the `workiqItems` state in `ChatInterface`
-- [ ] Extend the `onSend` callback signature from `(content: string, selectedSpaces: string[])` to `(content: string, selectedSpaces: string[], workiqItems?: WorkIQItem[])` to pass attached items to the parent
-- [ ] Update the `handleSubmit` function in `ChatInterface` to pass `workiqItems` to `onSend` and then clear the items after send
-- [ ] Update the `handleSend` function in `frontend/app/agents/[slug]/page.tsx` to accept the new `workiqItems` parameter
-- [ ] Add a tooltip (title attribute or custom tooltip) on each chip showing the full title and summary on hover
-- [ ] Handle overflow gracefully — if many items are attached, the chip row should scroll horizontally or wrap to a second line
+- [x] Add `onAddWorkIQMessage` callback prop to `ChatInterface` — receives `WorkIQResult[]` and calls the parent to add messages
+- [x] Create `handleWorkIQAttach` in `frontend/app/agents/[slug]/page.tsx` — for each item, calls `addMessageToSession` with `role: "assistant"` and content formatted as `📎 Work IQ Context:\n\n**[type] title** — date\n\nsummary`
+- [x] Update `MessageBubble` in `ChatInterface.tsx` to detect WorkIQ messages (prefix `📎 Work IQ Context:`) and render with purple `Briefcase` icon avatar (`bg-purple-500/20`), purple-tinted border (`border-purple-500/30`), and "Work IQ Context" label header
+- [x] Strip the `📎 Work IQ Context:\n\n` prefix before rendering markdown content
+- [x] Import `Briefcase` icon from `lucide-react` in `ChatInterface.tsx`
+- [x] Remove `WorkIQContextChips` import from `ChatInterface.tsx` (chips replaced by messages)
+- [x] Update context-building in `handleSend` to skip messages with `📎 Work IQ Context:` prefix (sent via `workiqContext` instead)
+- [x] Wire the `onAttach` handler in the WorkIQ modal to call both `setWorkiqItems` (for API context) and `onAddWorkIQMessage` (for visible messages)
+- [x] Extend the `onSend` callback signature to pass `workiqItems` to the parent, clear items after send
+- [x] Update `handleSend` in `frontend/app/agents/[slug]/page.tsx` to accept and serialize `workiqItems` as `workiqContext`
 
 ## Dependencies
 
@@ -47,9 +46,11 @@ When the message is sent, the attached items are included in the send payload an
 - How the attached items are serialized and sent to the backend API (covered in Agent Context Forwarding story)
 - Persisting attached items across page refreshes or navigation
 - Drag-and-drop reordering of attached items
+- Removing individual attached items from the conversation (WorkIQ messages are persisted like any other message)
 
 ## Notes
 
-- The chip pattern is similar to tag inputs or file attachment indicators in modern chat UIs (Slack, Teams). Keep them compact to avoid taking too much vertical space.
-- The `onSend` signature change will require updating the type in `ChatInterface` props and all call sites in `[slug]/page.tsx`. Since there's only one call site per agent page (they all share the same `[slug]/page.tsx`), this is a minimal change.
-- Consider using `flex flex-wrap gap-1.5` for the chips container to handle multiple items gracefully.
+- The original design used chips/pills above the textarea. This was replaced with full conversation messages after user feedback that the chip approach didn't provide enough visibility into the attached context.
+- The `WorkIQContextChips` component (`frontend/components/WorkIQContextChips.tsx`) still exists in the codebase but is no longer imported or rendered. It may be removed in a future cleanup.
+- WorkIQ messages use the `📎 Work IQ Context:` prefix (similar to the `📎 Context from previous agent:` handoff prefix) for reliable detection. Both the `MessageBubble` renderer and the context-building logic use this prefix to handle these messages specially.
+- The handoff and action panel logic in `page.tsx` already filter out messages starting with `📎`, so WorkIQ messages are automatically excluded from handoff content and action panel context.

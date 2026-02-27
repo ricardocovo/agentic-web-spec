@@ -46,6 +46,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [hasSearched, setHasSearched] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const fetchIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -97,13 +98,13 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
     }
   }, []);
 
-  // Reset hasSearched when query changes
   useEffect(() => {
     setHasSearched(false);
   }, [query]);
 
   const handleSearch = useCallback(() => {
     if (!query.trim() || loading) return;
+    setSelected(new Set());
     searchWorkIQ(query).then(() => setHasSearched(true));
   }, [query, loading, searchWorkIQ]);
 
@@ -116,20 +117,51 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
     });
   }, []);
 
-  const handleAttach = useCallback(() => {
-    const items = results.filter((r) => selected.has(r.id));
-    onAttach(items);
-    onClose();
+  const handleAttach = useCallback(async () => {
+    const selectedItems = results.filter((r) => selected.has(r.id));
+    if (selectedItems.length === 0) return;
+
+    setAttaching(true);
+    setError(null);
+
+    try {
+      // Fetch detail for each selected item
+      const enriched = await Promise.all(
+        selectedItems.map(async (item) => {
+          try {
+            const res = await fetch("/api/backend/workiq/detail", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: item.title, type: item.type }),
+            });
+            if (res.ok) {
+              const data = (await res.json()) as { detail: string };
+              return { ...item, summary: data.detail || item.summary };
+            }
+          } catch {
+            // Fall back to original summary
+          }
+          return item;
+        })
+      );
+
+      onAttach(enriched);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch details");
+    } finally {
+      setAttaching(false);
+    }
   }, [results, selected, onAttach, onClose]);
 
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !attaching) onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, attaching]);
 
   // Group results by type
   const grouped = results.reduce<Record<string, WorkIQResult[]>>((acc, item) => {
@@ -148,7 +180,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !attaching) onClose();
       }}
     >
       <div className="bg-surface border border-border/60 rounded-xl w-full max-w-2xl mx-4 shadow-[0_0_60px_rgba(0,207,255,0.08)] flex flex-col max-h-[80vh]">
@@ -157,7 +189,8 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
           <h2 className="font-semibold text-text-primary">Search Work IQ</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+            disabled={attaching}
+            className="p-1.5 rounded-md text-muted hover:text-text-primary hover:bg-surface-2 transition-colors disabled:opacity-40"
           >
             <X size={16} />
           </button>
@@ -179,13 +212,14 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
                   if (e.key === "Enter") handleSearch();
                 }}
                 placeholder="Search emails, meetings, documents, Teams..."
-                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors"
+                disabled={attaching}
+                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors disabled:opacity-50"
               />
             </div>
             <button
               type="button"
               onClick={handleSearch}
-              disabled={!query.trim() || loading}
+              disabled={!query.trim() || loading || attaching}
               className="px-3 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
@@ -242,7 +276,8 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
                         key={item.id}
                         type="button"
                         onClick={() => toggleSelect(item.id)}
-                        className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-all flex items-start gap-3"
+                        disabled={attaching}
+                        className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-all flex items-start gap-3 disabled:opacity-60"
                       >
                         <div
                           className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border mt-0.5 ${
@@ -285,9 +320,17 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
             <button
               type="button"
               onClick={handleAttach}
-              className="w-full py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all"
+              disabled={attaching}
+              className="w-full py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
             >
-              Attach {selected.size} item{selected.size !== 1 ? "s" : ""}
+              {attaching ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Fetching details...
+                </>
+              ) : (
+                <>Attach {selected.size} item{selected.size !== 1 ? "s" : ""}</>
+              )}
             </button>
           </div>
         )}
