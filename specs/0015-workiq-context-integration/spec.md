@@ -91,7 +91,7 @@ Product Managers and Engineering Leads using Web-Spec often need to reference in
 | WorkIQ MCP server not installed on deployment environment | High | High | Feature degrades gracefully — button hidden/disabled when WorkIQ is unavailable; status endpoint enables frontend to check availability |
 | WorkIQ MCP server process crashes or hangs | Med | Med | Implement health checks and auto-restart logic; set timeouts on MCP requests (10s); surface errors to user |
 | Large WorkIQ result summaries bloat the system prompt | Med | Med | Truncate individual item summaries to ~500 chars; limit total WorkIQ context to ~4000 chars; show truncation indicator |
-| Search latency degrades user experience | Med | Low | Show loading skeleton during search; debounce input (400ms); cache recent searches in memory |
+| Search latency degrades user experience | Med | Low | Show loading skeleton during search; require explicit search button click or Enter key to trigger search; cache recent searches in memory |
 | WorkIQ returns results the user doesn't have permission to see | Low | High | WorkIQ respects M365 permissions natively — no additional filtering needed, but document this assumption |
 
 ## Success Metrics

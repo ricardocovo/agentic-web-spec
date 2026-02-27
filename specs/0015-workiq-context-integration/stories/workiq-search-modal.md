@@ -10,11 +10,11 @@
 
 A full-screen modal (following the `RepoSelectorModal` pattern) provides a search interface for WorkIQ. Users type a query, results are fetched from the backend `POST /api/workiq/search` endpoint, and displayed in categorized sections or tabs (Emails, Meetings, Documents, Teams Messages, People). Each result shows its title, a brief snippet/summary, date, and a source-type icon. Users can select multiple results via checkmarks and confirm their selection with an "Attach" button.
 
-The modal must handle loading states, empty results, and errors (WorkIQ unavailable). Search is debounced at 400ms to avoid excessive API calls.
+The modal must handle loading states, empty results, and errors (WorkIQ unavailable). Search is triggered explicitly via a Search button or the Enter key to avoid excessive API calls.
 
 ## Acceptance Criteria
 
-- [ ] Given the modal is open, when the user types a query and waits 400ms, then a search request is sent to `POST /api/workiq/search` and results are displayed.
+- [ ] Given the modal is open, when the user types a query and clicks the Search button (or presses Enter), then a search request is sent to `POST /api/workiq/search` and results are displayed.
 - [ ] Given search results are returned, when they include multiple types, then results are grouped into sections: Emails, Meetings, Documents, Teams Messages, People — each with a section header and icon.
 - [ ] Given a result is displayed, when the user views it, then they see the title, a 1-2 line summary snippet, the date (relative or absolute), and a type-specific icon.
 - [ ] Given results are displayed, when the user clicks a result, then it is toggled as selected (checkmark appears) and can be deselected by clicking again.
@@ -29,7 +29,7 @@ The modal must handle loading states, empty results, and errors (WorkIQ unavaila
 - [ ] Create `frontend/components/WorkIQModal.tsx` component with the fixed overlay pattern from `RepoSelectorModal` (`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm`)
 - [ ] Define the `WorkIQResult` TypeScript interface on the frontend: `{ id: string; type: string; title: string; summary: string; date?: string; sourceUrl?: string }`
 - [ ] Define the component props interface: `{ onClose: () => void; onAttach: (items: WorkIQResult[]) => void }`
-- [ ] Implement the search input with auto-focus, debounced at 400ms (use `setTimeout`/`clearTimeout` pattern from RepoSelectorModal)
+- [ ] Implement the search input with auto-focus and an explicit Search button (no debounced auto-search); support Enter key to trigger search
 - [ ] Implement the API call to `POST /api/workiq/search` via `fetch` to the backend proxy (`/api/backend/workiq/search` through Next.js rewrite or direct to port 3001)
 - [ ] Build the categorized results display — group results by `type` field, render each group with a header (icon + label) and a list of result cards
 - [ ] Implement result card component showing: type icon (lucide: `Mail` for email, `Calendar` for meeting, `FileText` for document, `MessageSquare` for Teams, `User` for person), title, summary truncated to 2 lines, and formatted date
@@ -56,7 +56,9 @@ The modal must handle loading states, empty results, and errors (WorkIQ unavaila
 
 ## Notes
 
-- The `RepoSelectorModal.tsx` component is the primary reference for modal structure, backdrop styling, search debouncing, and loading states.
+- The `RepoSelectorModal.tsx` component is the primary reference for modal structure, backdrop styling, and loading states.
+- Search is triggered explicitly via a Search button or the Enter key — not debounced as-you-type — to avoid excessive API calls.
 - Use lucide-react icons for result type indicators: `Mail`, `Calendar`, `FileText`, `MessageSquare`, `User`.
 - The modal should not interfere with the existing chat interface state — it's a pure UI component that communicates via `onAttach` callback.
 - Request deduplication: use a ref counter pattern (like `RepoSelectorModal`'s `requestIdRef`) to discard stale search responses.
+- A `hasSearched` boolean state tracks whether a search has been performed, so "no results" is only shown after an explicit search (not while typing).
