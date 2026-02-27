@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Bot, Database, LayoutDashboard, SlidersHorizontal } from "lucide-react";
+import { Bot, Database, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import { PATModal } from "@/components/PATModal";
+import { SettingsDropdown } from "@/components/SettingsDropdown";
 
 const NAV_LINKS = [
   { href: "/", label: "Agents", icon: Bot },
   { href: "/kdb", label: "KDB", icon: Database },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin", label: "Admin", icon: SlidersHorizontal },
 ];
 
 export function Nav() {
@@ -51,13 +51,7 @@ export function Nav() {
           </nav>
 
           {/* Settings */}
-          <button
-            onClick={() => setShowPAT(true)}
-            className="p-2 rounded-md text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
-            title="Settings / GitHub PAT"
-          >
-            <Settings size={18} />
-          </button>
+          <SettingsDropdown onOpenPAT={() => setShowPAT(true)} />
         </div>
       </header>
 

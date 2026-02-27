@@ -8,6 +8,7 @@ export interface AgentConfig {
   borderColor: string;
   iconColor: string;
   nextAgent?: string;
+  quickPrompt?: string;
 }
 
 export interface AgentAction {
@@ -39,6 +40,7 @@ export const AGENTS: AgentConfig[] = [
     borderColor: "border-green-400/20",
     iconColor: "#00e676",
     nextAgent: "technical-docs",
+    quickPrompt: "Create a PRD based on the current context",
   },
   {
     slug: "technical-docs",
@@ -50,6 +52,7 @@ export const AGENTS: AgentConfig[] = [
     borderColor: "border-orange-400/20",
     iconColor: "#ff8c42",
     nextAgent: undefined,
+    quickPrompt: "Create Technical Specs based on the current context",
   },
 ];
 

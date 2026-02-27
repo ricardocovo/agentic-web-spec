@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Loader2, ArrowRight, User, Bot, Brain, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
@@ -285,6 +285,16 @@ export function ChatInterface({
               el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
             }}
           />
+          {agent.quickPrompt && !input.trim() && !isStreaming && !disabled && (
+            <button
+              onClick={() => setInput(agent.quickPrompt!)}
+              aria-label="Fill prompt suggestion"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all flex-shrink-0 hover:brightness-125"
+              style={{ backgroundColor: `${agent.iconColor}20`, color: agent.iconColor }}
+            >
+              <Sparkles size={16} />
+            </button>
+          )}
           <SpaceSelector
             onSelectionChange={setSelectedSpaces}
             disabled={disabled || isStreaming}
