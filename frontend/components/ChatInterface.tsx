@@ -7,13 +7,10 @@ import remarkGfm from "remark-gfm";
 import { Message } from "@/lib/storage";
 import { AgentConfig, AgentAction } from "@/lib/agents";
 import { SpaceSelector } from "@/components/SpaceSelector";
-<<<<<<< HEAD
 import { WorkIQModal, WorkIQResult } from "@/components/WorkIQModal";
 import { WorkIQContextChips } from "@/components/WorkIQContextChips";
 import { checkWorkIQStatus } from "@/lib/workiq";
-=======
 import { useApp } from "@/lib/context";
->>>>>>> f23161de5164204ff0c61b46ad77cd88aa7b9ce1
 
 interface ChatInterfaceProps {
   agent: AgentConfig;
