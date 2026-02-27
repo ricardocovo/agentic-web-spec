@@ -45,6 +45,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [hasSearched, setHasSearched] = useState(false);
   const fetchIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -90,11 +91,15 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
     }
   }, []);
 
-  // Debounced search
+  // Reset hasSearched when query changes
   useEffect(() => {
-    const timer = setTimeout(() => searchWorkIQ(query), 400);
-    return () => clearTimeout(timer);
-  }, [query, searchWorkIQ]);
+    setHasSearched(false);
+  }, [query]);
+
+  const handleSearch = useCallback(() => {
+    if (!query.trim() || loading) return;
+    searchWorkIQ(query).then(() => setHasSearched(true));
+  }, [query, loading, searchWorkIQ]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -143,7 +148,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
       <div className="bg-surface border border-border/60 rounded-xl w-full max-w-2xl mx-4 shadow-[0_0_60px_rgba(0,207,255,0.08)] flex flex-col max-h-[80vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
-          <h2 className="font-semibold text-text-primary">Search Microsoft 365</h2>
+          <h2 className="font-semibold text-text-primary">Search Work IQ</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-md text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
@@ -154,18 +159,32 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
 
         {/* Search */}
         <div className="p-4 border-b border-border flex-shrink-0">
-          <div className="relative">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-            />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search emails, meetings, documents, Teams..."
-              className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+              />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
+                placeholder="Search emails, meetings, documents, Teams..."
+                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={!query.trim() || loading}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+              Search
+            </button>
           </div>
         </div>
 
@@ -174,7 +193,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
           {loading && (
             <div className="flex items-center justify-center py-12 text-muted">
               <Loader2 size={20} className="animate-spin mr-2" />
-              <span className="text-sm">Searching Microsoft 365...</span>
+              <span className="text-sm">Searching Work IQ...</span>
             </div>
           )}
 
@@ -184,17 +203,17 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
             </div>
           )}
 
-          {!loading && !error && query.trim() && results.length === 0 && (
+          {!loading && !error && hasSearched && query.trim() && results.length === 0 && (
             <div className="text-center py-12 text-muted text-sm">
               <Search size={24} className="mx-auto mb-2 opacity-40" />
               No results found for &ldquo;{query}&rdquo;
             </div>
           )}
 
-          {!loading && !error && !query.trim() && (
+          {!loading && !error && !hasSearched && results.length === 0 && (
             <div className="text-center py-12 text-muted text-sm">
               <Search size={24} className="mx-auto mb-2 opacity-40" />
-              Type a query to search your Microsoft 365 data
+              Enter a query and press Search to find your Microsoft 365 data
             </div>
           )}
 
