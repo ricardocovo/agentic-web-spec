@@ -269,32 +269,34 @@ export function ChatInterface({
       {/* Input */}
       <div className="border-t border-border pt-4">
         <div className="flex gap-3 items-end">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={disabled ? "Select a repository to start chatting" : `Message ${agent.shortName}...`}
-            disabled={disabled || isStreaming}
-            rows={1}
-            className="flex-1 bg-surface-2 border border-border rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ maxHeight: "120px" }}
-            onInput={(e) => {
-              const el = e.currentTarget;
-              el.style.height = "auto";
-              el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-            }}
-          />
-          {agent.quickPrompt && !input.trim() && !isStreaming && !disabled && (
-            <button
-              onClick={() => setInput(agent.quickPrompt!)}
-              aria-label="Fill prompt suggestion"
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all flex-shrink-0 hover:brightness-125"
-              style={{ backgroundColor: `${agent.iconColor}20`, color: agent.iconColor }}
-            >
-              <Sparkles size={16} />
-            </button>
-          )}
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={disabled ? "Select a repository to start chatting" : `Message ${agent.shortName}...`}
+              disabled={disabled || isStreaming}
+              rows={1}
+              className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 pr-10 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ maxHeight: "120px" }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+              }}
+            />
+            {agent.quickPrompt && !input.trim() && !isStreaming && !disabled && (
+              <button
+                onClick={() => setInput(agent.quickPrompt!)}
+                aria-label="Fill prompt suggestion"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:brightness-125"
+                style={{ backgroundColor: `${agent.iconColor}20`, color: agent.iconColor }}
+              >
+                <Sparkles size={14} />
+              </button>
+            )}
+          </div>
           <SpaceSelector
             onSelectionChange={setSelectedSpaces}
             disabled={disabled || isStreaming}
