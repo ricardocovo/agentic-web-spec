@@ -26,7 +26,7 @@ const AGENT_ICONS = {
 };
 
 export default function AgentPage({ params }: { params: { slug: string } }) {
-  const { activeRepo, pat } = useApp();
+  const { activeRepo, pat, featureFlags } = useApp();
   const router = useRouter();
   const agent = getAgent(params.slug);
   const nextAgent = getNextAgent(params.slug);
@@ -332,12 +332,12 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
   const agentActions: AgentAction[] | undefined =
     agent.slug === "prd"
       ? [
-          { label: "Create PRD on Repo", description: "Create a branch with the PRD document in the repo", icon: GitPullRequest, onClick: handleCreatePRD },
-        ]
+          ...(featureFlags.generatePrd ? [{ label: "Create PRD on Repo", description: "Create a branch with the PRD document in the repo", icon: GitPullRequest, onClick: handleCreatePRD }] : []),
+        ].filter(Boolean) as AgentAction[]
       : agent.slug === "technical-docs"
       ? [
-          { label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", icon: GitPullRequest, onClick: handleCreateSpecs },
-          { label: "Create GitHub Issues", description: "Create GitHub issues from the spec", icon: CircleDot, onClick: handleCreateIssues },
+          ...(featureFlags.generateTechSpecs ? [{ label: "Create Docs on Repo", description: "Create a branch with spec files in the repo", icon: GitPullRequest, onClick: handleCreateSpecs }] : []),
+          ...(featureFlags.createGithubIssues ? [{ label: "Create GitHub Issues", description: "Create GitHub issues from the spec", icon: CircleDot, onClick: handleCreateIssues }] : []),
         ]
       : undefined;
 
