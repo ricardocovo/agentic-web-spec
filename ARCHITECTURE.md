@@ -29,9 +29,9 @@ The Next.js 14 App Router frontend manages all user-facing state in React Contex
 ```mermaid
 flowchart TD
     subgraph Browser["Browser — localhost:3000"]
-        Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb · /admin"]
-        Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal · ActionPanel"]
-        AppCtx["AppProvider — React Context\npat · username · activeRepo"]
+        Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb · /admin · /settings"]
+        Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal\nActionPanel · WorkIQModal · SettingsDropdown"]
+        AppCtx["AppProvider — React Context\npat · username · activeRepo · featureFlags"]
         LS[("localStorage\nsessions · activity\nPAT · username · activeRepo")]
     end
 
@@ -53,6 +53,7 @@ flowchart TD
         AgentRoute["Agent API\nPOST /api/agent/run\n— SSE Streaming —"]
         KdbRoute["KDB API\nGET /api/kdb/spaces\n— MCP via CopilotClient —"]
         AdminRoute["Admin API\nGET /api/admin/agents\nGET /api/admin/agents/:slug\nPUT /api/admin/agents/:slug"]
+        WorkiqRoute["WorkIQ API\nPOST /api/workiq/search\nGET  /api/workiq/status\nPOST /api/workiq/detail\n— MCP via workiq CLI —"]
     end
 
     YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
@@ -156,9 +157,12 @@ flowchart LR
     PRD -- "Send to Technical Docs\n(output as context)" --> TD
     TD -. "Create Docs on Repo\n(output as context)" .-> SW
     TD -. "Create GitHub Issues\n(output as context)" .-> IC
+    TD -. "Create PRD on Repo\n(output as context)" .-> PW
+
+    PW["PRD Writer\nprd-writer.agent.yaml\nTools: bash"]
 ```
 
-All agents use model `gpt-4.1` (except `technical-docs` which uses `o4-mini`) and run with `cwd` set to the cloned repository. The `spec-writer` and `issue-creator` are action agents triggered by post-action buttons on the Technical Docs page — they receive the tech-docs output as `context` and use `bash` to create branches/files or GitHub issues via `gh` CLI.
+The three analysis agents (deep-research, prd, technical-docs) use model `o4-mini`. The three action agents (spec-writer, prd-writer, issue-creator) use model `gpt-4.1` and run with `cwd` set to the cloned repository. The action agents are triggered by post-action buttons on the Technical Docs page — they receive the tech-docs output as `context` and use `bash` to create branches/files, PRDs, or GitHub issues via `gh` CLI.
 
 ---
 
@@ -178,6 +182,12 @@ All agents use model `gpt-4.1` (except `technical-docs` which uses `o4-mini`) an
 | Streaming transport | Server-Sent Events (SSE) | Token-by-token delivery from Copilot API to browser |
 | Agent config | YAML files (`agents/*.agent.yaml`) + shared `agentFileMap.ts` | Model, tools, system prompt per agent |
 | Model backend | GitHub Copilot API (gpt-4.1) | LLM inference + tool call execution against the repo |
+| Feature flags | `/settings` page + `storage.ts` | Toggle visibility of KDB, WorkIQ, and action buttons; persisted in `localStorage` |
+| Quick prompts | Agent chat page | One-click prompt buttons on PRD and Technical Docs agents for context-based auto-fill |
+| Settings dropdown | `SettingsDropdown` component | Menu with PAT settings, Admin link, and Feature Flags link |
+| WorkIQ client | `workiq-client.ts` | Singleton MCP client managing `workiq mcp` stdio subprocess for M365 data search |
+| WorkIQ routes | `routes/workiq.ts` | Search, detail, and status endpoints proxying to WorkIQ MCP |
+| Repo caching | `repo-cache.ts` + `spaces-cache.ts` | Client-side caching for repository data and Copilot Spaces (5-min TTL) |
 
 ---
 
@@ -191,6 +201,7 @@ All agents use model `gpt-4.1` (except `technical-docs` which uses `o4-mini`) an
 6. **GitHub Copilot API** receives the system prompt + user message, executes tool calls (`grep`, `glob`, `view`, `bash`) directly against the repo filesystem, and streams tokens back.
 7. **Backend** forwards each `message_delta` event as an SSE `chunk` event.
 8. **Frontend** renders tokens in real time. On completion, a "Send to [next agent]" button appears, passing the full response as `context` to the next agent in the chain.
+9. **Action agents** — From the Technical Docs page, users can trigger action agents (Spec Writer, PRD Writer, Issue Creator) via post-action buttons. These stream through the same SSE pipeline but execute write operations (git branches, file creation, PRs, GitHub issues) against the repository.
 
 ---
 
@@ -215,6 +226,7 @@ Frontend (ChatInterface)                   Backend
 ┌──────────────────────┐          ┌──────────────────────────┐
 │ WorkIQ button         │          │ GET  /api/workiq/status   │
 │ WorkIQModal (search)  │────────> │ POST /api/workiq/search   │
+│                       │          │ POST /api/workiq/detail   │
 │ WorkIQContextChips    │          │         │                  │
 │     ↓ onSend          │          │    workiq-client.ts        │
 │ workiqContext field    │────────> │    (MCP stdio singleton)   │

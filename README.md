@@ -25,12 +25,17 @@ Web-Spec is a dark-themed web application that lets you connect any GitHub repos
 
 ## Features
 
-- **3 chained AI agents** — Deep Research, PRD Writer, and Technical Docs form an end-to-end specification pipeline
+- **5 chained AI agents** — Deep Research → PRD Writer → Technical Docs form the analysis pipeline, with Spec Writer and Issue Creator as action agents
+- **3 action agents** — Spec Writer creates spec branches/PRs, PRD Writer creates PRD docs on repo, Issue Creator creates GitHub issues — all triggered from post-action buttons
 - **Repository targeting** — search any GitHub repository; it is cloned automatically and all agents run directly inside it
 - **Streaming chat** — real-time server-sent event (SSE) streaming powered by the GitHub Copilot SDK
 - **Agent handoff** — forward the output of one agent as context to the next with a single click
 - **Knowledge Base (KDB)** — attach a Copilot Space to inject external reference context into agent sessions
+- **WorkIQ integration** — search Microsoft 365 data (emails, meetings, documents, Teams) and attach results as context to agent sessions
 - **Dashboard** — session history and activity log persisted in `localStorage`
+- **Admin panel** — view and edit agent YAML configurations (model, tools, prompt) from the browser at `/admin`
+- **Feature flags** — toggle visibility of KDB, WorkIQ, and action buttons from the `/settings` page; flags stored in `localStorage`
+- **Quick prompts** — one-click prompt buttons on PRD and Technical Docs agents to auto-fill context-based prompts
 - **PAT-based auth** — authenticate with a GitHub Personal Access Token; no server-side secrets are stored
 
 ---
@@ -46,6 +51,8 @@ Web-Spec is a dark-themed web application that lets you connect any GitHub repos
                           │  /agents/[slug]  Streaming chat     │
                           │  /dashboard      Session history    │
                           │  /kdb            Copilot Spaces     │
+                          │  /settings       Feature flags      │
+                          │  /admin          Agent config editor│
                           │                                     │
                           │  AppProvider (React Context)        │
                           │  PAT · username · active repo       │
@@ -188,32 +195,51 @@ agentic-web-spec/
 │   │   │       └── page.tsx        # Dynamic agent chat page
 │   │   ├── dashboard/
 │   │   │   └── page.tsx            # Session history and activity log
-│   │   └── kdb/
-│   │       └── page.tsx            # Knowledge Base / Copilot Spaces
+│   │   ├── kdb/
+│   │   │   └── page.tsx            # Knowledge Base / Copilot Spaces
+│   │   ├── settings/
+│   │   │   └── page.tsx            # Feature flags toggle panel
+│   │   └── admin/
+│   │       └── page.tsx            # Agent YAML config editor
 │   ├── components/
 │   │   ├── ChatInterface.tsx       # Streaming chat UI component
 │   │   ├── Nav.tsx                 # Top navigation bar
 │   │   ├── RepoBar.tsx             # Active repository status bar
 │   │   ├── PATModal.tsx            # GitHub PAT settings modal
 │   │   ├── RepoSelectorModal.tsx   # Repository search and clone modal
+│   │   ├── ActionPanel.tsx         # Streaming action agent modal
+│   │   ├── SpaceSelector.tsx       # Multi-select Copilot Spaces
+│   │   ├── WorkIQModal.tsx         # WorkIQ search & context picker
+│   │   ├── SettingsDropdown.tsx    # User settings menu
 │   │   └── ui/                     # Shared UI primitives
 │   └── lib/
 │       ├── agents.ts               # Agent definitions and chain order
 │       ├── storage.ts              # localStorage read/write helpers
-│       └── context.tsx             # AppProvider — global React context
+│       ├── context.tsx             # AppProvider — global React context
+│       ├── repo-cache.ts           # Repository data caching
+│       ├── spaces-cache.ts         # Copilot Spaces cache (5-min TTL)
+│       └── workiq.ts               # WorkIQ availability checker
 ├── backend/                        # Express API server (port 3001)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── agents/
 │   │   ├── deep-research.agent.yaml
 │   │   ├── prd.agent.yaml
-│   │   └── technical-docs.agent.yaml
+│   │   ├── technical-docs.agent.yaml
+│   │   ├── spec-writer.agent.yaml
+│   │   ├── prd-writer.agent.yaml
+│   │   └── issue-creator.agent.yaml
 │   └── src/
 │       ├── index.ts                # Server entry point
+│       ├── lib/
+│       │   ├── agentFileMap.ts     # Agent slug → YAML file mapping
+│       │   └── workiq-client.ts    # WorkIQ MCP client singleton
 │       └── routes/
 │           ├── repos.ts            # Repository clone, status, tree endpoints
 │           ├── agent.ts            # Agent runner + SSE streaming
-│           └── kdb.ts              # KDB spaces proxy endpoint
+│           ├── kdb.ts              # KDB spaces proxy endpoint
+│           ├── workiq.ts           # WorkIQ MCP proxy endpoints
+│           └── admin.ts            # Agent CRUD REST endpoints
 └── reference/                      # Reference materials
 ```
 
@@ -221,7 +247,7 @@ agentic-web-spec/
 
 ## Agents
 
-Agents are defined as YAML configuration files in `backend/agents/`. Each file specifies the model, system prompt, and tool permissions. The three agents form a sequential pipeline where the output of each agent can be forwarded as context to the next.
+Agents are defined as YAML configuration files in `backend/agents/`. Each file specifies the model, system prompt, and tool permissions. The three analysis agents form a sequential pipeline where the output of each agent can be forwarded as context to the next. Three action agents branch off from the Technical Docs stage to perform write operations against the repository.
 
 ### Agent Pipeline
 
@@ -230,15 +256,29 @@ Agents are defined as YAML configuration files in `backend/agents/`. Each file s
 │  Deep Research  │ ───────────────► │   PRD Writer    │ ───────────────► │ Technical Docs  │
 │  deep-research  │                  │      prd        │                  │ technical-docs  │
 └─────────────────┘                  └─────────────────┘                  └─────────────────┘
+                                                                                  │
+                                                                   ┌──────────────┼──────────────┐
+                                                                   ▼              ▼              ▼
+                                                           ┌──────────┐   ┌──────────┐   ┌──────────┐
+                                                           │Spec Writer│   │PRD Writer│   │Issue     │
+                                                           │spec-writer│   │prd-writer│   │Creator   │
+                                                           └──────────┘   └──────────┘   │issue-    │
+                                                                                         │creator   │
+                                                                                         └──────────┘
 ```
+
+The three action agents (Spec Writer, PRD Writer, Issue Creator) are triggered from post-action buttons on the Technical Docs chat page. They receive the tech-docs output as context and execute write operations against the repository.
 
 ### Agent Details
 
 | Agent | Slug | Model | Tools | Description |
 |---|---|---|---|---|
-| **Deep Research** | `deep-research` | gpt-4.1 | grep, glob, view, bash | Analyzes codebase structure, technology constraints, patterns, and dependencies to produce a thorough research report |
-| **PRD Writer** | `prd` | gpt-4.1 | grep, glob, view | Consumes the research output and generates a complete, structured Product Requirements Document with goals, user stories, and acceptance criteria |
-| **Technical Docs** | `technical-docs` | gpt-4.1 | grep, glob, view, bash | Produces implementation task breakdowns, technical specifications, and developer-facing documentation based on the PRD |
+| **Deep Research** | `deep-research` | o4-mini | grep, glob, view, bash | Analyzes codebase structure, technology constraints, patterns, and dependencies to produce a research report |
+| **PRD Writer** | `prd` | o4-mini | grep, glob, view | Consumes research output and generates a structured Product Requirements Document |
+| **Technical Docs** | `technical-docs` | o4-mini | grep, glob, view, bash | Produces implementation task breakdowns and technical specifications based on the PRD |
+| **Spec Writer** | `spec-writer` | gpt-4.1 | bash | Action agent: creates a spec branch with spec.md and story files, commits, and opens a PR |
+| **PRD Writer (Repo)** | `prd-writer` | gpt-4.1 | bash | Action agent: creates a PRD markdown file on a branch and opens a PR |
+| **Issue Creator** | `issue-creator` | gpt-4.1 | bash | Action agent: creates hierarchical GitHub issues (parent + sub-issues) via `gh` CLI |
 
 ---
 
@@ -254,6 +294,12 @@ All API endpoints are served by the backend on port `3001`.
 | `GET` | `/api/repos/tree` | Return the file tree of a cloned repository |
 | `POST` | `/api/agent/run` | Start an agent session and stream token output via SSE |
 | `GET` | `/api/kdb/spaces` | Proxy endpoint to fetch GitHub Copilot Spaces (eliminates CORS errors) |
+| `POST` | `/api/workiq/search` | Search Microsoft 365 data via WorkIQ MCP |
+| `GET` | `/api/workiq/status` | Check if WorkIQ CLI is available |
+| `POST` | `/api/workiq/detail` | Get details for a specific WorkIQ item |
+| `GET` | `/api/admin/agents` | List all agent configurations |
+| `GET` | `/api/admin/agents/:slug` | Get a single agent's YAML config |
+| `PUT` | `/api/admin/agents/:slug` | Update an agent's YAML config |
 | `GET` | `/health` | Health check — returns `200 OK` |
 
 ---
@@ -289,8 +335,8 @@ The frontend requires no server-side environment variables. The GitHub PAT is st
 ### Adding an Agent
 
 1. Create a new YAML file in `backend/agents/` following the pattern of an existing agent file.
-2. Register the agent in `frontend/lib/agents.ts` with its `slug`, display name, and description.
-3. Add the agent to the chain order array in `agents.ts` if it should participate in handoffs.
+2. Register the slug → filename mapping in `backend/src/lib/agentFileMap.ts`.
+3. Register the agent in `frontend/lib/agents.ts` with its `slug`, display name, description, and `nextAgent` if it chains.
 
 ---
 
@@ -329,6 +375,10 @@ After starting the app with `npm run dev`, verify the following flows:
 | **Agent handoff** | Complete a Deep Research session → click **Send to PRD Writer** → confirm context is prepopulated in the new session |
 | **KDB attach** | Navigate to `/kdb` → connect a Copilot Space → start an agent session and confirm the space context is included |
 | **Dashboard** | Navigate to `/dashboard` → confirm past sessions and activity events are listed |
+| **WorkIQ** | Click the WorkIQ button in chat → search → attach a result → send a message → confirm context is included |
+| **Admin** | Navigate to `/admin` → view agent list → edit an agent's prompt → save → confirm YAML file is updated |
+| **Feature flags** | Navigate to `/settings` → toggle a flag off → confirm the corresponding UI element is hidden |
+| **Action agents** | Complete a Technical Docs session → click "Create Docs on Repo" → confirm ActionPanel streams the spec-writer agent |
 
 ---
 
