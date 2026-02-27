@@ -320,7 +320,7 @@ export function ChatInterface({
               onClick={() => setWorkiqModalOpen(true)}
               disabled={disabled || isStreaming}
               className="relative w-10 h-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-              aria-label="Search Microsoft 365"
+              aria-label="Search Work IQ"
             >
               <BrainCircuit size={18} />
               {workiqItems.length > 0 && (

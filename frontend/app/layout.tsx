@@ -5,8 +5,8 @@ import { Nav } from "@/components/Nav";
 import { RepoBar } from "@/components/RepoBar";
 
 export const metadata: Metadata = {
-  title: "Web-Spec",
-  description: "Generate specs and tasks ready for agentic development",
+  title: "Web-Spec - Let's build something!",
+  description: "Generate specs and tasks ready for Agentic Development",
 };
 
 export default function RootLayout({
