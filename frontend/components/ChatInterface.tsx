@@ -295,7 +295,7 @@ export function ChatInterface({
               placeholder={disabled ? "Select a repository to start chatting" : `Message ${agent.shortName}...`}
               disabled={disabled || isStreaming}
               rows={1}
-              className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 pr-10 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-surface-2 border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ maxHeight: "120px" }}
               onInput={(e) => {
                 const el = e.currentTarget;
