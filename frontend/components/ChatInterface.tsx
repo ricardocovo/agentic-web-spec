@@ -285,7 +285,7 @@ export function ChatInterface({
           items={workiqItems}
           onRemove={(id) => setWorkiqItems((prev) => prev.filter((i) => i.id !== id))}
         />
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-stretch">
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -295,7 +295,7 @@ export function ChatInterface({
               placeholder={disabled ? "Select a repository to start chatting" : `Message ${agent.shortName}...`}
               disabled={disabled || isStreaming}
               rows={1}
-              className="w-full bg-surface-2 border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 pr-10 text-sm text-text-primary placeholder:text-muted resize-none focus:outline-none focus:border-accent focus:shadow-glow-sm font-body transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ maxHeight: "120px" }}
               onInput={(e) => {
                 const el = e.currentTarget;
@@ -319,7 +319,7 @@ export function ChatInterface({
               type="button"
               onClick={() => setWorkiqModalOpen(true)}
               disabled={disabled || isStreaming}
-              className="relative w-10 h-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              className="relative w-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
               aria-label="Search Work IQ"
             >
               <BrainCircuit size={18} />
@@ -337,7 +337,7 @@ export function ChatInterface({
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isStreaming || disabled}
-            className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: agent.iconColor }}
           >
             {isStreaming ? (

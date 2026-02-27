@@ -94,7 +94,7 @@ export function SpaceSelector({ onSelectionChange, disabled }: SpaceSelectorProp
       <button
         type="button"
         onClick={handleOpen}
-        className={`relative w-10 h-10 flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors ${
+        className={`relative w-10 h-full flex items-center justify-center bg-surface-2 border border-border rounded-xl text-text-secondary hover:text-text-primary hover:border-accent transition-colors ${
           disabled ? "opacity-40 cursor-not-allowed" : ""
         }`}
       >
