@@ -283,10 +283,12 @@ export function ChatInterface({
 
       {/* Input */}
       <div className="border-t border-border pt-4">
-        <WorkIQContextChips
-          items={workiqItems}
-          onRemove={(id) => setWorkiqItems((prev) => prev.filter((i) => i.id !== id))}
-        />
+        {featureFlags.workiq && (
+          <WorkIQContextChips
+            items={workiqItems}
+            onRemove={(id) => setWorkiqItems((prev) => prev.filter((i) => i.id !== id))}
+          />
+        )}
         <div className="flex gap-3 items-stretch">
           <div className="flex-1 relative">
             <textarea
@@ -316,7 +318,7 @@ export function ChatInterface({
               </button>
             )}
           </div>
-          {workiqAvailable && (
+          {featureFlags.workiq && workiqAvailable && (
             <button
               type="button"
               onClick={() => setWorkiqModalOpen(true)}
@@ -332,10 +334,6 @@ export function ChatInterface({
               )}
             </button>
           )}
-          <SpaceSelector
-            onSelectionChange={setSelectedSpaces}
-            disabled={disabled || isStreaming}
-          />
           {featureFlags.kdb && (
             <SpaceSelector
               onSelectionChange={setSelectedSpaces}

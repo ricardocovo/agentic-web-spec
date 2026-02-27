@@ -74,8 +74,14 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
       if (id !== fetchIdRef.current) return;
 
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || "Search failed");
+        let errorMessage = `Search failed (${res.status})`;
+        try {
+          const data = (await res.json()) as { error?: string };
+          if (data.error) errorMessage = data.error;
+        } catch {
+          // Response body is not JSON (e.g. proxy error)
+        }
+        throw new Error(errorMessage);
       }
 
       const data = (await res.json()) as { results: WorkIQResult[] };

@@ -14,6 +14,7 @@ export interface WorkIQResult {
 let client: Client | null = null;
 let transport: StdioClientTransport | null = null;
 let searchToolName: string | null = null;
+let searchParamName: string = "query";
 
 // Availability cache (60s TTL)
 let availabilityCache: { available: boolean; reason?: string; ts: number } | null = null;
@@ -35,6 +36,7 @@ async function ensureClient(): Promise<Client> {
     client = null;
     transport = null;
     searchToolName = null;
+    searchParamName = "query";
   };
 
   transport.onerror = (err) => {
@@ -42,16 +44,44 @@ async function ensureClient(): Promise<Client> {
     client = null;
     transport = null;
     searchToolName = null;
+    searchParamName = "query";
   };
 
   await client.connect(transport);
 
-  // Discover the search tool name
+  // Discover available tools
   const { tools } = await client.listTools();
+  console.log("[workiq] Available MCP tools:", tools.map((t) => t.name));
+
+  // Accept EULA if the tool exists (required before other tools work)
+  const eulaTool = tools.find((t) => t.name === "accept_eula");
+  if (eulaTool) {
+    try {
+      await client.callTool({
+        name: "accept_eula",
+        arguments: { eulaUrl: "https://github.com/microsoft/work-iq-mcp" },
+      });
+      console.log("[workiq] EULA accepted");
+    } catch (err) {
+      console.warn("[workiq] EULA acceptance failed:", err);
+    }
+  }
+
+  // Discover the search tool name
   const searchTool = tools.find(
-    (t) => t.name.toLowerCase().includes("search") || t.name.toLowerCase().includes("query")
+    (t) =>
+      t.name.toLowerCase().includes("search") ||
+      t.name.toLowerCase().includes("query") ||
+      t.name.toLowerCase().includes("ask")
   );
   searchToolName = searchTool?.name ?? "search";
+
+  // Discover the parameter name the search tool expects (e.g. "question" or "query")
+  const searchSchema = searchTool?.inputSchema as { properties?: Record<string, unknown> } | undefined;
+  const paramNames = searchSchema?.properties ? Object.keys(searchSchema.properties) : [];
+  searchParamName = paramNames.find((p) => p === "question" || p === "query") ?? paramNames[0] ?? "query";
+
+  console.log("[workiq] Using search tool:", searchToolName, "with param:", searchParamName);
 
   return client;
 }
@@ -65,16 +95,28 @@ export async function search(query: string): Promise<WorkIQResult[]> {
     client = null;
     transport = null;
     searchToolName = null;
+    searchParamName = "query";
     mcpClient = await ensureClient();
   }
 
-  const timeoutMs = 10_000;
+  const timeoutMs = 60_000;
   const result = await Promise.race([
-    mcpClient.callTool({ name: searchToolName!, arguments: { query } }),
+    mcpClient.callTool({ name: searchToolName!, arguments: { [searchParamName]: query } }),
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("WorkIQ search timed out")), timeoutMs)
     ),
   ]);
+
+  // Check for MCP-level errors
+  if (result.isError) {
+    const errorText = Array.isArray(result.content)
+      ? result.content
+          .filter((c: { type: string }) => c.type === "text")
+          .map((c: { text: string }) => c.text)
+          .join("")
+      : "WorkIQ search failed";
+    throw new Error(errorText);
+  }
 
   // Parse MCP tool result into WorkIQResult[]
   const content = result.content;
