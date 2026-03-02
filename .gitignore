@@ -6,3 +6,5 @@ dist/
 
 backend/work/*
 *.tsbuildinfo
+# Skill PPTX files
+.github/skills/pptx/
