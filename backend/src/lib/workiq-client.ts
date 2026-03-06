@@ -130,7 +130,7 @@ async function callWorkIQ(question: string, timeoutMs = 60_000): Promise<string>
 export async function search(query: string): Promise<WorkIQResult[]> {
   const summaryPrompt =
     `${query} (from the last 4 weeks). ` +
-    `Provide a concise summary of what you found. Do NOT list individual items. ` +
+    `Provide the full details of what you found including all relevant information. ` +
     `Do NOT include any follow-up suggestions or "I can also" offers.`;
 
   const text = await callWorkIQ(summaryPrompt, 90_000);
