@@ -51,3 +51,4 @@ prompt: |
   - If git push fails, report the error clearly
   - The repo remote URL already has credentials embedded, so no auth setup is needed for git push
   - The `GH_TOKEN` environment variable is already set for `gh` CLI authentication
+  - **Do NOT narrate or echo intermediate steps.** Do not print the commands you are running, do not print file contents, do not print variable assignments or script snippets. Only output the final summary (step 11) after all steps are complete. All intermediate work must be silent.

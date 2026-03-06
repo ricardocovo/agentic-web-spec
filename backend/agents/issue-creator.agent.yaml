@@ -66,3 +66,4 @@ prompt: |
   - If the sub-issue linking fails, fall back to adding "Parent: #{parent_number}" at the top of the sub-issue body
   - Handle errors gracefully — if issue creation fails, report the error and continue with remaining issues
   - Do not create labels, milestones, or project associations
+  - **Do NOT narrate or echo intermediate steps.** Do not print the commands you are running, do not print file contents, do not print variable assignments or script snippets. Only output the final summary table (step 7) after all steps are complete. All intermediate work must be silent.
