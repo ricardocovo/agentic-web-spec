@@ -1,17 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  X,
-  Search,
-  Loader2,
-  Mail,
-  Calendar,
-  FileText,
-  MessageSquare,
-  User,
-  Check,
-} from "lucide-react";
+import { X, Search, Loader2, FileText, Check } from "lucide-react";
 
 export interface WorkIQResult {
   id: string;
@@ -27,17 +17,6 @@ interface WorkIQModalProps {
   onAttach: (items: WorkIQResult[]) => void;
 }
 
-const TYPE_CONFIG: Record<string, { icon: typeof Mail; label: string }> = {
-  email: { icon: Mail, label: "Emails" },
-  meeting: { icon: Calendar, label: "Meetings" },
-  document: { icon: FileText, label: "Documents" },
-  teams_message: { icon: MessageSquare, label: "Teams Messages" },
-  person: { icon: User, label: "People" },
-};
-
-function getTypeConfig(type: string) {
-  return TYPE_CONFIG[type] ?? { icon: FileText, label: type };
-}
 
 export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
   const [query, setQuery] = useState("");
@@ -46,7 +25,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [hasSearched, setHasSearched] = useState(false);
-  const [attaching, setAttaching] = useState(false);
+
   const fetchIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -117,70 +96,29 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
     });
   }, []);
 
-  const handleAttach = useCallback(async () => {
+  const handleAttach = useCallback(() => {
     const selectedItems = results.filter((r) => selected.has(r.id));
     if (selectedItems.length === 0) return;
-
-    setAttaching(true);
-    setError(null);
-
-    try {
-      // Fetch detail for each selected item
-      const enriched = await Promise.all(
-        selectedItems.map(async (item) => {
-          try {
-            const res = await fetch("/api/backend/workiq/detail", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title: item.title, type: item.type }),
-            });
-            if (res.ok) {
-              const data = (await res.json()) as { detail: string };
-              return { ...item, summary: data.detail || item.summary };
-            }
-          } catch {
-            // Fall back to original summary
-          }
-          return item;
-        })
-      );
-
-      onAttach(enriched);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch details");
-    } finally {
-      setAttaching(false);
-    }
+    onAttach(selectedItems);
+    onClose();
   }, [results, selected, onAttach, onClose]);
 
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !attaching) onClose();
+      if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose, attaching]);
+  }, [onClose]);
 
-  // Group results by type
-  const grouped = results.reduce<Record<string, WorkIQResult[]>>((acc, item) => {
-    const key = item.type || "document";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
 
-  const typeOrder = ["email", "meeting", "document", "teams_message", "person"];
-  const sortedGroups = Object.entries(grouped).sort(
-    ([a], [b]) => (typeOrder.indexOf(a) === -1 ? 99 : typeOrder.indexOf(a)) - (typeOrder.indexOf(b) === -1 ? 99 : typeOrder.indexOf(b))
-  );
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !attaching) onClose();
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="bg-surface border border-border/60 rounded-xl w-full max-w-2xl mx-4 shadow-[0_0_60px_rgba(0,207,255,0.08)] flex flex-col max-h-[80vh]">
@@ -189,8 +127,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
           <h2 className="font-semibold text-text-primary">Search Work IQ</h2>
           <button
             onClick={onClose}
-            disabled={attaching}
-            className="p-1.5 rounded-md text-muted hover:text-text-primary hover:bg-surface-2 transition-colors disabled:opacity-40"
+            className="p-1.5 rounded-md text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
           >
             <X size={16} />
           </button>
@@ -212,14 +149,13 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
                   if (e.key === "Enter") handleSearch();
                 }}
                 placeholder="Search emails, meetings, documents, Teams..."
-                disabled={attaching}
-                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors disabled:opacity-50"
+                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-muted focus:outline-none focus:border-accent focus:shadow-glow-sm transition-colors"
               />
             </div>
             <button
               type="button"
               onClick={handleSearch}
-              disabled={!query.trim() || loading || attaching}
+              disabled={!query.trim() || loading}
               className="px-3 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
@@ -257,61 +193,57 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
             </div>
           )}
 
-          {!loading &&
-            !error &&
-            sortedGroups.map(([type, items]) => {
-              const config = getTypeConfig(type);
-              const Icon = config.icon;
-              return (
-                <div key={type}>
-                  <div className="px-4 py-2 flex items-center gap-2 text-xs font-medium text-text-secondary uppercase tracking-wider bg-surface-2/50">
-                    <Icon size={13} />
-                    {config.label}
-                  </div>
-                  {items.map((item) => {
-                    const isSelected = selected.has(item.id);
-                    const ItemIcon = getTypeConfig(item.type).icon;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => toggleSelect(item.id)}
-                        disabled={attaching}
-                        className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-all flex items-start gap-3 disabled:opacity-60"
-                      >
-                        <div
-                          className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border mt-0.5 ${
-                            isSelected
-                              ? "bg-accent border-accent"
-                              : "border-border bg-transparent"
-                          }`}
-                        >
-                          {isSelected && <Check size={12} className="text-white" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <ItemIcon size={12} className="text-muted flex-shrink-0" />
-                            <span className="text-sm font-medium text-text-primary truncate">
-                              {item.title}
-                            </span>
-                          </div>
-                          {item.summary && (
-                            <p className="text-xs text-text-secondary line-clamp-2">
-                              {item.summary}
-                            </p>
-                          )}
-                          {item.date && (
-                            <span className="text-xs text-muted mt-0.5 block">
-                              {item.date}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+          {!loading && !error && results.length > 0 && (
+            <div>
+              <div className="px-4 py-2 flex items-center gap-2 text-xs font-medium text-text-secondary uppercase tracking-wider bg-surface-2/50">
+                <FileText size={13} />
+                Items
+              </div>
+              {results.map((item) => {
+                const isSelected = selected.has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggleSelect(item.id)}
+                    className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-all flex items-start gap-3"
+                  >
+                    <div
+                      className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border mt-0.5 ${
+                        isSelected
+                          ? "bg-accent border-accent"
+                          : "border-border bg-transparent"
+                      }`}
+                    >
+                      {isSelected && <Check size={12} className="text-white" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-medium text-text-primary truncate">
+                          {item.title}
+                        </span>
+                        {item.type && (
+                          <span className="text-xs font-normal text-text-secondary flex-shrink-0">
+                            [{item.type}]
+                          </span>
+                        )}
+                      </div>
+                      {item.date && (
+                        <span className="text-xs text-muted block mt-0.5">
+                          {item.date}
+                        </span>
+                      )}
+                      {item.summary && (
+                        <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                          {item.summary}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -320,17 +252,9 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
             <button
               type="button"
               onClick={handleAttach}
-              disabled={attaching}
-              className="w-full py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+              className="w-full py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all flex items-center justify-center gap-2"
             >
-              {attaching ? (
-                <>
-                  <Loader2 size={15} className="animate-spin" />
-                  Fetching details...
-                </>
-              ) : (
-                <>Attach {selected.size} item{selected.size !== 1 ? "s" : ""}</>
-              )}
+              Attach {selected.size} item{selected.size !== 1 ? "s" : ""}
             </button>
           </div>
         )}
