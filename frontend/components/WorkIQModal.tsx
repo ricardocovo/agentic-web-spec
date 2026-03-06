@@ -66,6 +66,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
 
       const data = (await res.json()) as { results: WorkIQResult[] };
       setResults(data.results);
+      setSelected(new Set(data.results.map((r) => r.id)));
     } catch (err) {
       if (id === fetchIdRef.current) {
         setError(err instanceof Error ? err.message : "Search failed");
@@ -197,7 +198,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
             <div>
               <div className="px-4 py-2 flex items-center gap-2 text-xs font-medium text-text-secondary uppercase tracking-wider bg-surface-2/50">
                 <FileText size={13} />
-                Items
+                Summary
               </div>
               {results.map((item) => {
                 const isSelected = selected.has(item.id);
@@ -218,23 +219,11 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
                       {isSelected && <Check size={12} className="text-white" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-medium text-text-primary truncate">
-                          {item.title}
-                        </span>
-                        {item.type && (
-                          <span className="text-xs font-normal text-text-secondary flex-shrink-0">
-                            [{item.type}]
-                          </span>
-                        )}
-                      </div>
-                      {item.date && (
-                        <span className="text-xs text-muted block mt-0.5">
-                          {item.date}
-                        </span>
-                      )}
+                      <span className="text-sm font-medium text-text-primary">
+                        {item.title}
+                      </span>
                       {item.summary && (
-                        <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                        <p className="text-xs text-text-secondary mt-1.5 whitespace-pre-line">
                           {item.summary}
                         </p>
                       )}
@@ -254,7 +243,7 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
               onClick={handleAttach}
               className="w-full py-2 rounded-lg text-sm font-medium bg-accent text-white hover:brightness-110 transition-all flex items-center justify-center gap-2"
             >
-              Attach {selected.size} item{selected.size !== 1 ? "s" : ""}
+              Attach summary
             </button>
           </div>
         )}

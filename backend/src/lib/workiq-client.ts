@@ -102,7 +102,7 @@ async function callWorkIQ(question: string, timeoutMs = 60_000): Promise<string>
   const result = await Promise.race([
     mcpClient.callTool({ name: searchToolName!, arguments: { [searchParamName]: question } }),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("WorkIQ search timed out")), timeoutMs)
+      setTimeout(() => reject(new Error("WorkIQ request timed out")), timeoutMs)
     ),
   ]);
 
@@ -128,13 +128,23 @@ async function callWorkIQ(question: string, timeoutMs = 60_000): Promise<string>
 }
 
 export async function search(query: string): Promise<WorkIQResult[]> {
-  const structuredPrompt =
+  const summaryPrompt =
     `${query} (from the last 4 weeks). ` +
-    `List each result as a numbered item with *Type, *Title, and *Date fields.`;
+    `Provide a concise summary of what you found. Do NOT list individual items. ` +
+    `Do NOT include any follow-up suggestions or "I can also" offers.`;
 
-  const text = await callWorkIQ(structuredPrompt, 90_000);
+  const text = await callWorkIQ(summaryPrompt, 90_000);
   console.log("[workiq] Raw search response:\n", text.slice(0, 1000));
-  return parseItemizedResponse(text);
+
+  if (!text.trim()) return [];
+
+  const cleaned = stripTrailingSuggestions(stripUrls(text)).trim();
+  return [{
+    id: `workiq-summary-${Date.now()}`,
+    type: "document",
+    title: query.slice(0, 120),
+    summary: cleaned,
+  }];
 }
 
 export async function getDetail(itemTitle: string, itemType: string): Promise<string> {
@@ -149,43 +159,89 @@ export async function getDetail(itemTitle: string, itemType: string): Promise<st
   const hint = typeHints[itemType] || "Provide a detailed summary.";
   const detailPrompt =
     `I need the full details for this ${itemType}: "${itemTitle}"\n\n${hint}\n\n` +
-    `Focus on the most recent instance from the last 4 weeks.`;
+    `Focus on the most recent instance from the last 4 weeks. ` +
+    `Do NOT include any follow-up suggestions, "I can also" offers, or next-step prompts at the end.`;
 
-  return await callWorkIQ(detailPrompt);
+  const raw = await callWorkIQ(detailPrompt, 90_000);
+  return trimToContentSummary(stripUrls(raw));
+}
+
+/**
+ * Strip preamble (document identification, metadata) and keep only
+ * the substantive content starting from "Detailed Content Summary"
+ * or similar headings.  Falls back to the full text if no marker is found.
+ */
+function trimToContentSummary(text: string): string {
+  // Match headings like "## 🧠 Detailed Content Summary", "### Detailed Content Summary", etc.
+  const marker = text.search(/#{1,4}\s*(?:🧠\s*)?Detailed Content Summary/i);
+  let result = marker !== -1 ? text.slice(marker).trim() : text;
+
+  // Strip trailing AI suggestion blocks ("If you'd like, I can also:", "Suggested Next Steps", etc.)
+  result = result.replace(/\n+(?:#{1,4}\s*)?(?:💡\s*)?(?:Suggested Next Steps|If you(?:'d| would) like,? I can (?:also)?)[^]*$/i, "");
+
+  return result.trim();
+}
+
+function stripTrailingSuggestions(text: string): string {
+  return text.replace(
+    /\n+(?:#{1,4}\s*)?(?:💡\s*)?(?:If you(?:'d| would| want)[^]*$|Suggested Next Steps[^]*$|Would you like me to[^]*$|I can also[^]*$|Let me know if[^]*$)/i,
+    ""
+  ).trim();
 }
 
 function parseItemizedResponse(text: string): WorkIQResult[] {
   const results: WorkIQResult[] = [];
-  const lines = text.split("\n");
-  let currentItem: { title: string; type: string; date: string; summary: string; sourceUrl?: string } | null = null;
+  const lines = stripTrailingSuggestions(text).split("\n");
+  let currentItem: { title: string; type: string; date: string; summary: string; organizer: string; location: string; notes: string; sourceUrl?: string } | null = null;
   let itemIndex = 0;
 
   for (const line of lines) {
     const trimmed = line.trim();
+
+    // Skip separator lines and empty section headers
+    if (trimmed.startsWith("---") || !trimmed) continue;
+
     // Detect numbered item headers like "1. **Title**", "- **Title**", "### 1) Title"
     const numberedMatch = trimmed.match(/^(?:#{1,4}\s*)?(?:\*\*)?(\d+)[.)]\s*\*?\*?\s*(.+)/);
-    const boldHeaderMatch = !numberedMatch ? trimmed.match(/^[-•]\s*\*\*(.+?)\*\*/) : null;
+    // Detect bold standalone title like "**Database Requirements**"
+    const boldStandaloneMatch = !numberedMatch ? trimmed.match(/^\*\*([^*]+)\*\*\s*$/) : null;
+    const boldHeaderMatch = !numberedMatch && !boldStandaloneMatch ? trimmed.match(/^[-•]\s*\*\*(.+?)\*\*/) : null;
+    // Detect section headers like "### ? Matching meeting" — start a new item context
+    const sectionMatch = !numberedMatch && !boldStandaloneMatch && !boldHeaderMatch
+      ? trimmed.match(/^#{1,4}\s*[^a-zA-Z0-9]*\s*(.+)/)
+      : null;
 
-    if (numberedMatch || boldHeaderMatch) {
+    if (numberedMatch || boldStandaloneMatch || boldHeaderMatch) {
       // Save previous item
       if (currentItem) {
         results.push(buildResult(currentItem, itemIndex++));
       }
-      const rawTitle = (numberedMatch ? numberedMatch[2] : boldHeaderMatch![1])
+      const rawTitle = (numberedMatch ? numberedMatch[2] : boldStandaloneMatch ? boldStandaloneMatch[1] : boldHeaderMatch![1])
         .replace(/\*\*/g, "").replace(/\[.*?\]\(.*?\)/g, "").trim();
-      currentItem = { title: rawTitle, type: "document", date: "", summary: "" };
+      currentItem = { title: rawTitle, type: "document", date: "", summary: "", organizer: "", location: "", notes: "" };
+    } else if (sectionMatch) {
+      // Section header like "### Matching meeting" — save previous and prepare for next item
+      if (currentItem) {
+        results.push(buildResult(currentItem, itemIndex++));
+      }
+      currentItem = null; // Wait for the actual title on the next bold line
     } else if (currentItem && trimmed) {
-      // Parse metadata lines within an item (e.g. "*Type: Meeting", "- Title: ...", "Type: ...")
+      // Parse metadata lines within an item
       const lower = trimmed.toLowerCase().replace(/^\*+\s*/, "").replace(/^[-•]\s*/, "");
 
       if (lower.startsWith("type:")) {
         currentItem.type = extractValue(trimmed);
       } else if (lower.startsWith("title:") || lower.startsWith("subject:")) {
-        // Override the header title with the explicit title metadata
         const val = extractValue(trimmed);
         if (val) currentItem.title = val;
       } else if (lower.startsWith("date:") || lower.startsWith("when:") || lower.startsWith("time:")) {
         currentItem.date = extractValue(trimmed);
+      } else if (lower.startsWith("organizer:") || lower.startsWith("organized by:") || lower.startsWith("from:") || lower.startsWith("sender:")) {
+        currentItem.organizer = extractValue(trimmed);
+      } else if (lower.startsWith("location:") || lower.startsWith("where:")) {
+        currentItem.location = extractValue(trimmed);
+      } else if (lower.startsWith("notes:") || lower.startsWith("status note:") || lower.startsWith("status:")) {
+        currentItem.notes = extractValue(trimmed);
       } else if (lower.startsWith("description:") || lower.startsWith("summary:") || lower.startsWith("snippet:")) {
         const val = extractValue(trimmed);
         if (val) currentItem.summary = val;
@@ -204,8 +260,17 @@ function parseItemizedResponse(text: string): WorkIQResult[] {
     results.push(buildResult(currentItem, itemIndex));
   }
 
+  // Deduplicate by title (case-insensitive), keeping the first occurrence
+  const seen = new Set<string>();
+  const deduped = results.filter((r) => {
+    const key = r.title.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   // Fallback: if parsing found nothing, return the whole text as a single result
-  if (results.length === 0 && text.trim()) {
+  if (deduped.length === 0 && text.trim()) {
     return [{
       id: "workiq-0",
       type: "document",
@@ -214,29 +279,56 @@ function parseItemizedResponse(text: string): WorkIQResult[] {
     }];
   }
 
-  return results;
+  return deduped;
+}
+
+function stripUrls(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/g, "$1") // [label](url) → label
+    .replace(/https?:\/\/\S+/g, "")                      // bare URLs
+    .replace(/\s{2,}/g, " ")                             // collapse extra spaces
+    .trim();
 }
 
 function extractValue(line: string): string {
   // Strip leading markdown (bullets, asterisks, bold) and the key label, keeping only the value
   return line
     .replace(/^[-•*_\s]+/, "")        // strip leading bullets/asterisks/spaces
-    .replace(/^\*?\*?\w+[:\s*]+/i, "") // strip key label like "Type:", "*Title:", etc.
+    .replace(/^\*?\*?[\w\s]+?:\*?\*?\s*/i, "") // strip key label like "Type:", "*Status note:", etc.
     .replace(/\*\*/g, "")             // strip bold markers
+    .replace(/\[(\d+)\]\(https?:\/\/[^)]+\)/g, "") // strip reference links like [1](url)
+    .replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/g, "$1") // [label](url) → label
+    .replace(/https?:\/\/\S+/g, "")  // strip bare URLs
     .trim();
 }
 
-function buildResult(item: { title: string; type: string; date: string; summary: string; sourceUrl?: string }, idx: number): WorkIQResult {
+function buildResult(item: { title: string; type: string; date: string; summary: string; organizer?: string; location?: string; notes?: string; sourceUrl?: string }, idx: number): WorkIQResult {
   let type = normalizeType(item.type);
-  // If type is still the default "document", try to infer from title context
+  // If type is still the default "document", try to infer from URLs and content first, then title
+  if (type === "document") {
+    type = inferTypeFromContent(item.summary, item.sourceUrl);
+  }
   if (type === "document") {
     type = inferTypeFromTitle(item.title);
   }
+
+  // Build summary: prefer explicit summary, then notes, then organizer/location metadata
+  let summary = item.summary;
+  if (!summary && item.notes) {
+    summary = item.notes;
+  }
+  if (!summary) {
+    const parts: string[] = [];
+    if (item.organizer) parts.push(`Organizer: ${item.organizer}`);
+    if (item.location) parts.push(item.location);
+    summary = parts.join(" · ");
+  }
+
   return {
     id: `workiq-${idx}`,
     type,
     title: item.title.slice(0, 120),
-    summary: item.summary.slice(0, 300),
+    summary: stripUrls(summary).slice(0, 300),
     date: item.date || undefined,
     sourceUrl: item.sourceUrl,
   };
@@ -251,8 +343,26 @@ function inferTypeFromTitle(title: string): WorkIQResult["type"] {
       lower.includes("review") || lower.includes("townhall") || lower.includes("town hall") ||
       lower.includes("kick-off") || lower.includes("kickoff") || lower.includes("check-in") ||
       lower.includes("huddle") || lower.includes("all-hands") || lower.includes("demo") ||
-      lower.includes("workshop") || lower.includes("brainstorm") || lower.includes("office hours")) {
+      lower.includes("workshop") || lower.includes("brainstorm") || lower.includes("office hours") ||
+      lower.includes("meeting") || lower.startsWith("call with") || lower.startsWith("call -") ||
+      lower.includes("catch-up") || lower.includes("catchup")) {
     return "meeting";
+  }
+  return "document";
+}
+
+function inferTypeFromContent(summary: string, sourceUrl?: string): WorkIQResult["type"] {
+  const text = `${summary} ${sourceUrl || ""}`.toLowerCase();
+  if (text.includes("teams.microsoft.com/l/meeting") || text.includes("meeting/details") ||
+      text.includes("transcript") || text.includes("recording") ||
+      text.includes("meeting recording") || text.includes("meeting transcript")) {
+    return "meeting";
+  }
+  if (text.includes("teams.microsoft.com/l/message") || text.includes("teams.microsoft.com/l/channel")) {
+    return "teams_message";
+  }
+  if (text.includes("outlook") || text.includes("mail.") || text.includes("/owa/")) {
+    return "email";
   }
   return "document";
 }
