@@ -67,11 +67,15 @@ Each agent hands off its output to the next, streaming results in real time. The
 flowchart TD
     Browser["Next.js Frontend · :3000"]
     Backend["Express Backend · :3001"]
-    GH[("GitHub")]
+    SDK["@github/copilot-sdk"]
+    WorkIQ["WorkIQ MCP · M365 Data"]
+    GitHubAPI["GitHub API"]
     Repos[("~/work/user/repo")]
 
     Browser -- "HTTP / SSE" --> Backend
-    Backend -- "GitHub API" --> GH
+    Backend -- "Agent sessions" --> SDK
+    SDK -- "MCP" --> WorkIQ
+    Backend -- "GitHub API (gh CLI)" --> GitHubAPI
     Backend -- "git clone" --> Repos
 ```
 
@@ -79,10 +83,16 @@ flowchart TD
 |---|---|
 | **Frontend** | `/` Agent selector, `/agents/[slug]` Streaming chat, `/dashboard` Session history, `/kdb` Copilot Spaces, `/settings` Feature flags, `/admin` Agent config editor. Global state via `AppProvider` (React Context) + `localStorage`. |
 | **Backend** | `POST /api/repos/clone` — clones via `gh`, `POST /api/agent/run` — runs `@github/copilot-sdk` and streams SSE tokens, YAML agent configs in `agents/`. |
+| **Copilot SDK** | Agent sessions use `@github/copilot-sdk` to run model inference with tool permissions (grep, glob, bash, etc.) defined in YAML configs. |
+| **WorkIQ** | `POST /api/workiq/search` — proxies Microsoft 365 queries (emails, meetings, docs, Teams) via the WorkIQ MCP CLI and attaches results as agent context. |
 
 The **frontend** manages UI, routing, and all client-side state via React context and `localStorage`. It sends repository clone requests and agent run requests to the backend over HTTP.
 
 The **backend** handles repository operations via the GitHub CLI (`gh`) and spawns agent sessions using the `@github/copilot-sdk`. Agent responses are streamed back to the browser as Server-Sent Events (SSE), enabling token-by-token rendering in the chat interface.
+
+The **Copilot SDK** (`@github/copilot-sdk`) powers all agent interactions. Each agent session is configured via a YAML file that specifies the model, system prompt, and tool permissions. The SDK manages the agentic loop — sending prompts, executing tool calls, and streaming token responses back through SSE.
+
+**WorkIQ** integration enables agents to incorporate Microsoft 365 context. Users can search emails, meetings, documents, and Teams messages via the WorkIQ MCP CLI, then attach selected results as additional context for any agent session.
 
 Agent configurations are stored as YAML files in `backend/agents/` and describe the model, system prompt, and tool permissions for each agent.
 
