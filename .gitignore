@@ -8,3 +8,9 @@ backend/work/*
 *.tsbuildinfo
 # Skill PPTX files
 .github/skills/pptx/
+
+# Ignore everything in docs/ except .pptx files
+docs/*
+!docs/
+!docs/**/*.pptx
+!docs/**/*.md

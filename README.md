@@ -1,31 +1,52 @@
 # Web-Spec
 
-> AI-powered specification generator for GitHub repositories.
+**Web-Spec** bridges the gap between business users and AI-powered software development. By wrapping GitHub Copilot's agentic capabilities in a clean, intuitive interface, it empowers product managers, business analysts, and stakeholders to actively participate in the Software Development Lifecycle — no IDE or CLI required.
 
-Web-Spec is a dark-themed web application that lets you connect any GitHub repository and run a chained pipeline of AI agents against it — producing structured research, product requirements documents, and technical specifications in a real-time streaming chat interface. Built for developers and product teams who want to accelerate the spec-writing stage of agentic development workflows.
+Simply point it at any GitHub repository, describe what you need, and a chained pipeline of AI agents does the heavy lifting:
+
+- 🔍 **Deep Research** — understands the existing codebase.
+- 📋 **PRD Writer** — translates ideas into product requirements.
+- 📐 **Technical Docs** — produces developer-ready specifications.
+
+Each agent hands off its output to the next, streaming results in real time. The result? Business users can drive spec creation, align with engineering early, and accelerate delivery — turning GitHub Copilot from a developer tool into a shared team superpower.
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Agents](#agents)
-- [API Reference](#api-reference)
-- [Environment Variables](#environment-variables)
-- [Development](#development)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
+- [Web-Spec](#web-spec)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Architecture](#architecture)
+  - [Technology Stack](#technology-stack)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+      - [PAT Permissions](#pat-permissions)
+    - [Install](#install)
+    - [Run](#run)
+    - [First-Time Setup](#first-time-setup)
+  - [Project Structure](#project-structure)
+  - [Agents](#agents)
+    - [Agent Pipeline](#agent-pipeline)
+    - [Agent Details](#agent-details)
+  - [API Reference](#api-reference)
+  - [Environment Variables](#environment-variables)
+  - [Development](#development)
+    - [Hot Reload](#hot-reload)
+    - [Root Scripts](#root-scripts)
+    - [Adding an Agent](#adding-an-agent)
+  - [Testing](#testing)
+    - [Type Checking](#type-checking)
+    - [Linting](#linting)
+    - [Manual Testing](#manual-testing)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ---
 
 ## Features
 
-- **5 chained AI agents** — Deep Research → PRD Writer → Technical Docs form the analysis pipeline, with Spec Writer and Issue Creator as action agents
+- **6 AI agents** — Deep Research → PRD Writer → Technical Docs form the analysis pipeline, with Spec Writer, PRD Repo Writer, and Issue Creator as action agents
 - **3 action agents** — Spec Writer creates spec branches/PRs, PRD Writer creates PRD docs on repo, Issue Creator creates GitHub issues — all triggered from post-action buttons
 - **Repository targeting** — search any GitHub repository; it is cloned automatically and all agents run directly inside it
 - **Streaming chat** — real-time server-sent event (SSE) streaming powered by the GitHub Copilot SDK
@@ -42,41 +63,22 @@ Web-Spec is a dark-themed web application that lets you connect any GitHub repos
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    Browser["Next.js Frontend · :3000"]
+    Backend["Express Backend · :3001"]
+    GH[("GitHub")]
+    Repos[("~/work/user/repo")]
+
+    Browser -- "HTTP / SSE" --> Backend
+    Backend -- "GitHub API" --> GH
+    Backend -- "git clone" --> Repos
 ```
-                          Browser (port 3000)
-                          ┌────────────────────────────────────┐
-                          │           Next.js Frontend          │
-                          │                                     │
-                          │  /               Agent selector     │
-                          │  /agents/[slug]  Streaming chat     │
-                          │  /dashboard      Session history    │
-                          │  /kdb            Copilot Spaces     │
-                          │  /settings       Feature flags      │
-                          │  /admin          Agent config editor│
-                          │                                     │
-                          │  AppProvider (React Context)        │
-                          │  PAT · username · active repo       │
-                          │  sessions · activity log            │
-                          └──────────────┬──────────────────────┘
-                                         │  HTTP / SSE
-                                         │
-                          Express Server (port 3001)
-                          ┌──────────────▼──────────────────────┐
-                          │           Node.js Backend            │
-                          │                                     │
-                          │  POST /api/repos/clone              │
-                          │    └─ gh repo clone → ~/work/...    │
-                          │                                     │
-                          │  POST /api/agent/run                │
-                          │    └─ @github/copilot-sdk           │
-                          │       streams tokens via SSE        │
-                          │                                     │
-                          │  YAML agent configs (agents/)       │
-                          └──────────────────────────────────────┘
-                                         │
-                          Cloned repos   │  GitHub API
-                          ~/work/{user}/{repo}
-```
+
+| Layer | Routes / Responsibilities |
+|---|---|
+| **Frontend** | `/` Agent selector, `/agents/[slug]` Streaming chat, `/dashboard` Session history, `/kdb` Copilot Spaces, `/settings` Feature flags, `/admin` Agent config editor. Global state via `AppProvider` (React Context) + `localStorage`. |
+| **Backend** | `POST /api/repos/clone` — clones via `gh`, `POST /api/agent/run` — runs `@github/copilot-sdk` and streams SSE tokens, YAML agent configs in `agents/`. |
 
 The **frontend** manages UI, routing, and all client-side state via React context and `localStorage`. It sends repository clone requests and agent run requests to the backend over HTTP.
 
@@ -210,8 +212,8 @@ agentic-web-spec/
 │   │   ├── ActionPanel.tsx         # Streaming action agent modal
 │   │   ├── SpaceSelector.tsx       # Multi-select Copilot Spaces
 │   │   ├── WorkIQModal.tsx         # WorkIQ search & context picker
-│   │   ├── SettingsDropdown.tsx    # User settings menu
-│   │   └── ui/                     # Shared UI primitives
+│   │   ├── WorkIQContextChips.tsx  # Attached WorkIQ context display
+│   │   └── SettingsDropdown.tsx    # User settings menu
 │   └── lib/
 │       ├── agents.ts               # Agent definitions and chain order
 │       ├── storage.ts              # localStorage read/write helpers
@@ -251,20 +253,20 @@ Agents are defined as YAML configuration files in `backend/agents/`. Each file s
 
 ### Agent Pipeline
 
-```
-┌─────────────────┐     hand-off     ┌─────────────────┐     hand-off     ┌─────────────────┐
-│  Deep Research  │ ───────────────► │   PRD Writer    │ ───────────────► │ Technical Docs  │
-│  deep-research  │                  │      prd        │                  │ technical-docs  │
-└─────────────────┘                  └─────────────────┘                  └─────────────────┘
-                                                                                  │
-                                                                   ┌──────────────┼──────────────┐
-                                                                   ▼              ▼              ▼
-                                                           ┌──────────┐   ┌──────────┐   ┌──────────┐
-                                                           │Spec Writer│   │PRD Writer│   │Issue     │
-                                                           │spec-writer│   │prd-writer│   │Creator   │
-                                                           └──────────┘   └──────────┘   │issue-    │
-                                                                                         │creator   │
-                                                                                         └──────────┘
+```mermaid
+flowchart LR
+    DR["Deep Research"] -->|hand-off| PRD["PRD Writer"]
+    PRD -->|hand-off| TD["Technical Docs"]
+    TD -->|action| SW["Spec Writer"]
+    TD -->|action| PW["PRD Repo Writer"]
+    TD -->|action| IC["Issue Creator"]
+
+    style DR fill:#2d333b,stroke:#539bf5
+    style PRD fill:#2d333b,stroke:#539bf5
+    style TD fill:#2d333b,stroke:#539bf5
+    style SW fill:#2d333b,stroke:#f47067
+    style PW fill:#2d333b,stroke:#f47067
+    style IC fill:#2d333b,stroke:#f47067
 ```
 
 The three action agents (Spec Writer, PRD Writer, Issue Creator) are triggered from post-action buttons on the Technical Docs chat page. They receive the tech-docs output as context and execute write operations against the repository.
