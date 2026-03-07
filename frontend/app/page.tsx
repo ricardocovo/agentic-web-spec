@@ -52,7 +52,11 @@ function AgentCard({ agent, disabled }: { agent: AgentConfig; disabled: boolean 
   if (disabled) return card;
 
   return (
-    <Link href={`/agents/${agent.slug}`} className="block h-full">
+    <Link
+      href={`/agents/${agent.slug}`}
+      onClick={() => sessionStorage.setItem(`web_spec_fresh_${agent.slug}`, "1")}
+      className="block h-full"
+    >
       {card}
     </Link>
   );

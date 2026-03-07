@@ -43,6 +43,27 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     prompt: string;
   } | null>(null);
 
+  // Counter bumped when the home page signals "start fresh" — forces the
+  // init effect to re-run even when slug/repo haven't changed.
+  const [initCounter, setInitCounter] = useState(0);
+
+  // Detect "start fresh" flag set by the home page (sessionStorage survives
+  // Next.js router-cache restores).  React allows setState during render when
+  // the value actually changes — this is the official "reset state on external
+  // signal" pattern.
+  const freshKey = `web_spec_fresh_${params.slug}`;
+  if (typeof window !== "undefined" && sessionStorage.getItem(freshKey)) {
+    sessionStorage.removeItem(freshKey);
+    // Also clear any stale resume key so the init effect creates a new session
+    sessionStorage.removeItem(`web_spec_resume_${params.slug}`);
+    if (session !== null) {
+      setSession(null);
+      setMessages([]);
+      sessionRef.current = null;
+      setInitCounter((c) => c + 1);
+    }
+  }
+
   // Redirect if no active repo
   useEffect(() => {
     if (!activeRepo) router.push("/");
@@ -98,15 +119,14 @@ export default function AgentPage({ params }: { params: { slug: string } }) {
     setMessages(newSession.messages);
   // activeRepo.fullName is intentionally included so the session resets when the repo switches
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.slug, activeRepo?.fullName]);
+  }, [params.slug, activeRepo?.fullName, initCounter]);
 
   const handleWorkIQAttach = useCallback(
     (items: WorkIQResult[]) => {
       if (!session) return;
 
       for (const item of items) {
-        const label = item.type ? `[${item.type}] ` : "";
-        const content = `📎 Work IQ Context:\n\n**${label}${item.title}**${item.date ? ` — ${item.date}` : ""}\n\n${item.summary}`;
+        const content = `📎 Work IQ Context:\n\n**${item.title}**${item.date ? ` — ${item.date}` : ""}\n\n${item.summary}`;
         const updated = addMessageToSession(session.id, {
           role: "assistant",
           content,

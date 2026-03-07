@@ -1,0 +1,60 @@
+ covoricardo  ~  ❯ workiq ask -q "Get details from a Database Requirements meeting I had yesterday"
+Here's what I found from your **Database Requirements** meeting from **yesterday** (recording and transcript available). I'm only including details that are explicitly supported by the meeting transcript and files-no assumptions added.
+
+---
+
+## Database Requirements - Meeting Details
+
+### Recording & Transcript
+- **Title:** *Database Requirements*
+- **Artifact:** Meeting recording with transcript
+- **File:** *Database Requirements-20260304_200644-Meeting Transcript.mp4*
+- **Availability:** Shared in a Teams thread titled *Database Requirements*
+- **Modified:** Wednesday evening
+- **Source:** Meeting transcript from the recording [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+
+---
+
+### What Was Discussed (from the meeting transcript)
+
+The discussion focused on **database architecture changes** driven by new requirements coming from the field:
+
+- You explained that the current database is **SQL Server / Azure SQL**, which worked well for **initial development**, but new requirements suggest it would be beneficial to **package the solution differently**. [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+- You raised the idea of **switching from a relational database to a NoSQL database** within Azure, rather than rebuilding the solution from scratch. [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+- Two Azure NoSQL options were mentioned:
+  - **Azure Table Storage**
+  - **Azure Cosmos DB**, which you identified as the preferred direction [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+- Within Cosmos DB, you discussed possible APIs:
+  - **MongoDB API**
+  - **SQL (Core) API**, which you personally leaned toward, pending alignment with internal standards and developer feedback [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+- Key planning questions you explicitly called out:
+  - What would the **migration plan** look like?
+  - What is the **level of effort**?
+  - **Which application modules** would need to change?
+  - How would this work with **Entity Framework**, and whether an Entity Framework provider for Cosmos DB should be used? [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+- You also raised **data modeling questions**, such as:
+  - Whether to use a **single container** (e.g., a "players" container)
+  - Or **multiple containers** depending on access patterns and design needs [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+- You noted that **some stakeholders could not attend** and explicitly mentioned that the **recording and transcription were shared** to help them catch up. [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+
+---
+
+### Attendees & Participation
+- The transcript clearly shows **you (Ricardo Covo)** speaking and leading the discussion.
+- The transcript does **not explicitly list all attendees**, and the invitee list is not included in the available sources, so I can't reliably enumerate who else was present. [1](https://microsoft-my.sharepoint.com/personal/covoricardo_microsoft_com/Documents/Recordings/Database%20Requirements-20260304_200644-Meeting%20Transcript.mp4?web=1)
+
+---
+
+### Related Files
+- I also found a separate document titled **"Database POAM Requirements.docx"**, but it is restricted and does not expose content details. Its presence alone does not confirm it was discussed in this meeting. [2](https://microsoft.sharepoint.com/teams/MissionTrustAssuranceCenter/_layouts/15/Doc.aspx?sourcedoc=%7BC7CFDE42-5C6E-4356-9BD0-09E9A76CB2D6%7D&file=Database%20POAM%20Requirements.docx&action=default&mobileredirect=true&DefaultItemOpen=1)
+
+---
+
+## What I Can Do Next (immediately)
+If you want, I can:
+- Turn this into a **clean meeting summary or exec-ready recap**
+- Extract **explicit action items** strictly from what was said
+- Draft a **follow-up email** to attendees who missed the meeting
+- Help you convert this into a **Cosmos DB migration proposal outline** (clearly marked as a recommendation, not a meeting fact)
+
+Just tell me which one you want.

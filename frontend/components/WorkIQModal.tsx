@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Search, Loader2, FileText, Check } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface WorkIQResult {
   id: string;
@@ -203,11 +205,10 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
               {results.map((item) => {
                 const isSelected = selected.has(item.id);
                 return (
-                  <button
+                  <div
                     key={item.id}
-                    type="button"
+                    className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-all flex items-start gap-3 cursor-pointer"
                     onClick={() => toggleSelect(item.id)}
-                    className="w-full text-left px-4 py-3 hover:bg-surface-2 border-b border-border/50 last:border-0 transition-all flex items-start gap-3"
                   >
                     <div
                       className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border mt-0.5 ${
@@ -223,12 +224,14 @@ export function WorkIQModal({ onClose, onAttach }: WorkIQModalProps) {
                         {item.title}
                       </span>
                       {item.summary && (
-                        <p className="text-xs text-text-secondary mt-1.5 whitespace-pre-line">
-                          {item.summary}
-                        </p>
+                        <div className="md-content text-xs text-text-secondary mt-1.5">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {item.summary}
+                          </ReactMarkdown>
+                        </div>
                       )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

@@ -11,7 +11,7 @@ import { useApp } from "@/lib/context";
 const NAV_LINKS = [
   { href: "/", label: "Agents", icon: Bot, flag: null },
   { href: "/kdb", label: "KDB", icon: Database, flag: "kdb" as const },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, flag: null },
+  { href: "/dashboard", label: "Sessions", icon: LayoutDashboard, flag: null },
 ];
 
 export function Nav() {

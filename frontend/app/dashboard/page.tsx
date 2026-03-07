@@ -51,7 +51,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <LayoutDashboard size={22} className="text-accent" />
-        <h1 className="text-2xl font-display font-bold text-text-primary">Dashboard</h1>
+        <h1 className="text-2xl font-display font-bold text-text-primary">Sessions</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

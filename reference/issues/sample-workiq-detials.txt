@@ -1,0 +1,31 @@
+atabase Requirements — March 4, 2026 12
+
+Here’s a grounded, detailed summary of the most recent “Database Requirements” document, based strictly on the latest instance within the last 4 weeks that exists in your tenant. --- ## ✅ Document Identified (Most Recent Instance) - Title: Database Requirements - Format: Meeting recording with transcript (MP4) - File name: Database Requirements-20260304_200644-Meeting Transcript.mp4 - Last modified: ~45 minutes ago - Source: Teams / SharePoint (auto‑generated meeting artifact) - Primary speaker: Ricardo Covo - Type: Meeting transcript (not a written requirements spec) This is the only identifiable and most recent artifact explicitly titled “Database Requirements” within the last four weeks. 1 --- ## 📌 Nature of the Document Despite the title, this document is not a formal requirements document. It is a recorded meeting and transcript where database requirements are discussed verbally and framed as open design questions and next steps, rather than finalized specifications. 1 --- ## 🧠 Detailed Content Summary ### 1. Current Database State
+
+The system’s database is currently implemented using: - SQL Server / Azure SQL
+This approach worked well for: - Initial development - Early-stage requirements
+However, new constraints and expectations have emerged from the field. 1 --- ### 2. New Requirements Driving Change
+There is explicit feedback from the field requesting: - Better packaging - Greater flexibility - Improved deployment portability
+These requirements are motivating a shift away from a traditional relational database model. 1 --- ### 3. Strategic Direction: Move to NoSQL
+The core architectural consideration discussed is a transition to a NoSQL database.
+The discussion is explicitly scoped to Azure-native services, including: - Azure Table Storage (mentioned but not favored) - Azure Cosmos DB (clearly the preferred direction) 1 --- ### 4. Cosmos DB Options Under Consideration
+Two Cosmos DB APIs are mentioned: - MongoDB API - SQL API
+The speaker expresses a personal preference for the SQL API, but notes that: - Final choice must align with organizational standards - Developer feedback and norms must be considered 1 --- ### 5. Open Technical Questions (Not Yet Resolved) The document captures questions to be answered, not conclusions: #### a. Migration Planning
+What would a credible plan look like to move from Azure SQL to Cosmos DB?
+What is the estimated effort involved? #### b. Impact Analysis
+Which application modules would need to change?
+How invasive would the refactor be? #### c. ORM / Framework Compatibility
+The system currently uses Entity Framework
+Key question raised: - Is there an Entity Framework–compatible approach for Cosmos DB in this context? 1 #### d. Data Modeling Strategy
+Container design is undecided: - Single container (e.g., “players” container holding everything) - Multiple containers with domain separation
+This is explicitly framed as a design decision to be evaluated, not a requirement already defined. 1 --- ### 6. Purpose of the Recording
+Some stakeholders were unable to attend the meeting
+The recording and transcript exist to: - Share context - Capture the initial discussion - Enable follow‑up analysis and decision‑making 1 --- ## ⚠️ What This Document Does Not Contain To be precise and compliant with your request for “full details”: - ❌ No finalized database requirements
+❌ No schema definitions
+❌ No performance, SLA, or compliance requirements
+❌ No approved architecture decision
+❌ No timelines or migration commitments Those items are explicitly not present in the source and should not be inferred. 1 --- ## 🧭 Practical Takeaway This “Database Requirements” artifact should be interpreted as: > An early-stage architectural discussion capturing the motivation, candidate technologies, and key questions required to define a future database strategy—rather than a formal requirements document. --- ## 💡 Suggested Next Steps (Optional, Not from Source) If helpful, I can:
+Convert this transcript into a formal Database Requirements draft
+Extract decision points vs. open questions
+Map the discussion to a Cosmos DB migration checklist
+Compare Cosmos DB SQL API vs MongoDB API specifically in the context of Entity Framework Just tell me how you’d like to use this material next.

@@ -1,0 +1,13 @@
+[workiq] Raw search response:
+ I found **1 meeting** with the title **“Database Requirements”** in the **last 4 weeks**. (https://teams.microsoft.com/l/meeting/details?eventId=AAMkAGJkN2E1NTAzLTI4OWItNDlhOC04NDBiLWQ0MGJjYzgzY2Q3YQBGAAAAAAAcrUBmL0OxQpA7nWsOkZPwBwANHOLSjLdFT5dnjZL9RFA8AAAAAAENAAANHOLSjLdFT5dnjZL9RFA8AABTzgIEAAA%3d)
+
+Here are the results, formatted as requested:
+
+1. **Type:** Event
+   **Title:** Database Requirements
+   **Date:** March 4, 2026 (7:00 PM – 7:30 PM)
+
+If you want, I can also:
+- Expand the time window (e.g., last 8 or 12 weeks)
+- Include recurring vs. one-off meetings
+- Export this list to a table or Excel-friendly format

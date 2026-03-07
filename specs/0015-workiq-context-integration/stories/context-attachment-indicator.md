@@ -16,7 +16,7 @@ The toolbar button shows a badge count of attached items. A `WorkIQContextChips`
 
 ## Acceptance Criteria
 
-- [x] Given one or more WorkIQ items are attached (with enriched detail summaries from the detail fetch), when the user views the chat, then each item appears as a visible assistant message with a purple `Briefcase` icon, purple-tinted border (`border-purple-500/30`), and a "Work IQ Context" label header.
+- [x] Given one or more WorkIQ items are attached (with summaries from the search response), when the user views the chat, then each item appears as a visible assistant message with a purple `Briefcase` icon, purple-tinted border (`border-purple-500/30`), and a "Work IQ Context" label header.
 - [x] Given a WorkIQ context message is displayed, when the user views it, then the `📎 Work IQ Context:` prefix is stripped and the remaining content is rendered as markdown — showing the item title (bold, with type label and date), followed by the full detail text.
 - [x] Given WorkIQ items are attached, when the user sends a message, then the attached items are included in the send handler's payload as `workiqContext`.
 - [x] Given the context is built from previous messages, when WorkIQ messages (prefix `📎 Work IQ Context:`) are encountered, then they are excluded from the regular context string to avoid duplication with `workiqContext`.

@@ -53,7 +53,7 @@ flowchart TD
         AgentRoute["Agent API\nPOST /api/agent/run\n— SSE Streaming —"]
         KdbRoute["KDB API\nGET /api/kdb/spaces\n— MCP via CopilotClient —"]
         AdminRoute["Admin API\nGET /api/admin/agents\nGET /api/admin/agents/:slug\nPUT /api/admin/agents/:slug"]
-        WorkiqRoute["WorkIQ API\nPOST /api/workiq/search\nGET  /api/workiq/status\nPOST /api/workiq/detail\n— MCP via workiq CLI —"]
+        WorkiqRoute["WorkIQ API\nPOST /api/workiq/search\nGET  /api/workiq/status\n— MCP via workiq CLI —"]
     end
 
     YAMLLoader["YAML Agent Config Loader\nbackend/agents/*.agent.yaml"]
@@ -226,7 +226,6 @@ Frontend (ChatInterface)                   Backend
 ┌──────────────────────┐          ┌──────────────────────────┐
 │ WorkIQ button         │          │ GET  /api/workiq/status   │
 │ WorkIQModal (search)  │────────> │ POST /api/workiq/search   │
-│                       │          │ POST /api/workiq/detail   │
 │ WorkIQContextChips    │          │         │                  │
 │     ↓ onSend          │          │    workiq-client.ts        │
 │ workiqContext field    │────────> │    (MCP stdio singleton)   │

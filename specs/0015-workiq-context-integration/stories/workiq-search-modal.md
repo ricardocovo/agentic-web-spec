@@ -18,8 +18,7 @@ The modal must handle loading states, empty results, and errors (WorkIQ unavaila
 - [ ] Given search results are returned, when they include multiple types, then results are grouped into sections: Emails, Meetings, Documents, Teams Messages, People — each with a section header and icon.
 - [ ] Given a result is displayed, when the user views it, then they see the title, a 1-2 line summary snippet, the date (if available), and a type-specific icon.
 - [ ] Given results are displayed, when the user clicks a result, then it is toggled as selected (checkmark appears) and can be deselected by clicking again.
-- [ ] Given one or more results are selected, when the user clicks "Attach N items", then the modal fetches full details for each selected item via `POST /api/backend/workiq/detail`, shows a "Fetching details..." loading state, and passes enriched items (with full summary/transcript/notes) to the parent component — which adds them as visible conversation messages and stores them for `workiqContext`.
-- [ ] Given the detail fetch is in progress, when the user views the modal, then the UI is disabled (search, selection, close via backdrop/Escape) to prevent interaction during the fetch.
+- [ ] Given one or more results are selected, when the user clicks "Attach", then `onAttach()` is called immediately with the selected items' existing search data (no additional network request) and the modal closes instantly.
 - [ ] Given the user presses Escape or clicks the × button, when the modal is open and not fetching details, then it closes without attaching any items.
 - [ ] Given a search is in progress, when results have not yet returned, then a loading spinner is displayed.
 - [ ] Given the search returns no results, when the results area is rendered, then a "No results found for '{query}'" message is shown.
@@ -35,8 +34,7 @@ The modal must handle loading states, empty results, and errors (WorkIQ unavaila
 - [x] Build the categorized results display — group results by `type` field, render each group with a header (icon + label) and a list of result cards
 - [x] Implement result card component showing: type icon (lucide: `Mail` for email, `Calendar` for meeting, `FileText` for document, `MessageSquare` for Teams, `User` for person), title, summary truncated to 2 lines, and formatted date
 - [x] Implement multi-select state — track selected item IDs in a `Set<string>`; toggle on click; show checkmark overlay on selected items
-- [x] Implement two-phase attach — "Attach N items" button triggers `POST /api/backend/workiq/detail` for each selected item in parallel, shows "Fetching details..." with spinner, replaces summary with full detail text, then calls `onAttach` with enriched items
-- [x] Disable UI during detail fetch — search input, selection toggles, close-on-backdrop, and Escape key are all disabled while attaching
+- [x] Implement synchronous attach — "Attach" button filters selected items and immediately calls `onAttach` then `onClose`
 - [x] Implement loading state with a centered `Loader2` spinner
 - [x] Implement empty state with "No results found" message and search icon
 - [x] Implement error state with error message; handle non-JSON error responses gracefully
@@ -46,8 +44,8 @@ The modal must handle loading states, empty results, and errors (WorkIQ unavaila
 
 ## Dependencies
 
-- Depends on: [Backend WorkIQ MCP Proxy](backend-workiq-proxy.md) — the `POST /api/workiq/search` and `POST /api/workiq/detail` endpoints must exist
-- Depends on: Next.js Route Handler proxies at `frontend/app/api/backend/workiq/search/route.ts` and `frontend/app/api/backend/workiq/detail/route.ts` with 90s timeouts
+- Depends on: [Backend WorkIQ MCP Proxy](backend-workiq-proxy.md) — the `POST /api/workiq/search` endpoint must exist
+- Depends on: Next.js Route Handler proxy at `frontend/app/api/backend/workiq/search/route.ts` with 90s timeout
 
 ## Out of Scope
 
@@ -61,7 +59,7 @@ The modal must handle loading states, empty results, and errors (WorkIQ unavaila
 - The `RepoSelectorModal.tsx` component is the primary reference for modal structure, backdrop styling, and loading states.
 - Search is triggered explicitly via a Search button or the Enter key — not debounced as-you-type — to avoid excessive API calls. WorkIQ queries take 30-40 seconds.
 - Use lucide-react icons for result type indicators: `Mail`, `Calendar`, `FileText`, `MessageSquare`, `User`.
-- The modal implements a two-phase flow: search returns brief itemized results, and attaching fetches full details. This keeps the search response manageable and gives the user control over which items get full detail fetched.
+- The modal attaches items instantly using search result data — there is no separate detail-fetching phase. The search endpoint returns full WorkIQ responses directly.
 - The modal should not interfere with the existing chat interface state — it's a pure UI component that communicates via `onAttach` callback. The parent (`ChatInterface`) then handles both adding visible messages (via `onAddWorkIQMessage`) and tracking items for `workiqContext`.
 - Request deduplication: use a ref counter pattern (like `RepoSelectorModal`'s `requestIdRef`) to discard stale search responses.
 - A `hasSearched` boolean state tracks whether a search has been performed, so "no results" is only shown after an explicit search (not while typing).

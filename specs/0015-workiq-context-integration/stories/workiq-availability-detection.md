@@ -46,5 +46,5 @@ If WorkIQ becomes unavailable mid-session (e.g., the MCP server crashes and can'
 ## Notes
 
 - The existing `SpaceSelector` component lazy-loads its data on mount but doesn't have a separate "availability" check — it just fails gracefully if no spaces are returned. WorkIQ needs an explicit availability check because the entire button should be hidden if WorkIQ isn't installed, to avoid confusing users.
-- The `/api/backend/workiq/status` can use the generic Next.js rewrite from `next.config.mjs` since it's a fast endpoint. The search and detail endpoints use dedicated Route Handlers with 90s timeouts.
+- The `/api/backend/workiq/status` can use the generic Next.js rewrite from `next.config.mjs` since it's a fast endpoint. The search endpoint uses a dedicated Route Handler with 90s timeout.
 - Consider using `SWR` or a simple fetch-with-cache pattern. Given the existing codebase doesn't use SWR, a manual cache in a module-level variable is more consistent.

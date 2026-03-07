@@ -138,7 +138,8 @@ export async function search(query: string): Promise<WorkIQResult[]> {
 
   if (!text.trim()) return [];
 
-  const cleaned = stripTrailingSuggestions(stripUrls(text)).trim();
+  // Minimal cleanup: only strip trailing AI suggestion blocks, preserve URLs and formatting
+  const cleaned = stripTrailingSuggestions(text).trim();
   return [{
     id: `workiq-summary-${Date.now()}`,
     type: "document",
@@ -147,40 +148,6 @@ export async function search(query: string): Promise<WorkIQResult[]> {
   }];
 }
 
-export async function getDetail(itemTitle: string, itemType: string): Promise<string> {
-  const typeHints: Record<string, string> = {
-    email: "Provide the full email content, including sender, recipients, and body.",
-    meeting: "Provide the meeting summary, transcript, or notes if available. Include attendees and key discussion points.",
-    document: "Provide a detailed summary of the document contents.",
-    teams_message: "Provide the full message thread and context.",
-    person: "Provide relevant recent interactions and context about this person.",
-  };
-
-  const hint = typeHints[itemType] || "Provide a detailed summary.";
-  const detailPrompt =
-    `I need the full details for this ${itemType}: "${itemTitle}"\n\n${hint}\n\n` +
-    `Focus on the most recent instance from the last 4 weeks. ` +
-    `Do NOT include any follow-up suggestions, "I can also" offers, or next-step prompts at the end.`;
-
-  const raw = await callWorkIQ(detailPrompt, 90_000);
-  return trimToContentSummary(stripUrls(raw));
-}
-
-/**
- * Strip preamble (document identification, metadata) and keep only
- * the substantive content starting from "Detailed Content Summary"
- * or similar headings.  Falls back to the full text if no marker is found.
- */
-function trimToContentSummary(text: string): string {
-  // Match headings like "## 🧠 Detailed Content Summary", "### Detailed Content Summary", etc.
-  const marker = text.search(/#{1,4}\s*(?:🧠\s*)?Detailed Content Summary/i);
-  let result = marker !== -1 ? text.slice(marker).trim() : text;
-
-  // Strip trailing AI suggestion blocks ("If you'd like, I can also:", "Suggested Next Steps", etc.)
-  result = result.replace(/\n+(?:#{1,4}\s*)?(?:💡\s*)?(?:Suggested Next Steps|If you(?:'d| would) like,? I can (?:also)?)[^]*$/i, "");
-
-  return result.trim();
-}
 
 function stripTrailingSuggestions(text: string): string {
   return text.replace(
@@ -328,7 +295,7 @@ function buildResult(item: { title: string; type: string; date: string; summary:
     id: `workiq-${idx}`,
     type,
     title: item.title.slice(0, 120),
-    summary: stripUrls(summary).slice(0, 300),
+    summary: stripUrls(summary),
     date: item.date || undefined,
     sourceUrl: item.sourceUrl,
   };

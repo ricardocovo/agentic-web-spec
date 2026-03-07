@@ -296,7 +296,6 @@ All API endpoints are served by the backend on port `3001`.
 | `GET` | `/api/kdb/spaces` | Proxy endpoint to fetch GitHub Copilot Spaces (eliminates CORS errors) |
 | `POST` | `/api/workiq/search` | Search Microsoft 365 data via WorkIQ MCP |
 | `GET` | `/api/workiq/status` | Check if WorkIQ CLI is available |
-| `POST` | `/api/workiq/detail` | Get details for a specific WorkIQ item |
 | `GET` | `/api/admin/agents` | List all agent configurations |
 | `GET` | `/api/admin/agents/:slug` | Get a single agent's YAML config |
 | `PUT` | `/api/admin/agents/:slug` | Update an agent's YAML config |
