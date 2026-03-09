@@ -158,7 +158,7 @@ export function SpaceSelector({ onSelectionChange, disabled }: SpaceSelectorProp
                     key={key}
                     type="button"
                     onClick={() => toggleSpace(key)}
-                    className="w-full px-4 py-2.5 hover:bg-surface-3 cursor-pointer flex items-start gap-3 transition-colors text-left"
+                    className="w-full px-4 py-2.5 hover:bg-surface-2 cursor-pointer flex items-start gap-3 transition-colors text-left"
                   >
                     <div
                       className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border mt-0.5 ${
