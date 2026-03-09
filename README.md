@@ -108,11 +108,13 @@ For detailed Mermaid diagrams covering the system overview, agent run sequence, 
 | **UI language** | React 18, TypeScript 5 |
 | **Styling** | Tailwind CSS 3.4 |
 | **Icons** | Lucide React 0.462 |
+| **Markdown rendering** | react-markdown ^10.1, remark-gfm ^4.0 |
 | **Linting** | ESLint |
 | **Backend runtime** | Node.js 18+ (ESM) |
 | **Backend framework** | Express 4.21 |
 | **Backend language** | TypeScript 5 (ES2022, NodeNext) |
 | **AI SDK** | @github/copilot-sdk ^0.1.25 |
+| **MCP client** | @modelcontextprotocol/sdk ^1.27 |
 | **Agent config** | YAML 2.8 |
 | **Dev tooling** | nodemon, tsx, concurrently ^9 |
 | **Monorepo** | npm workspaces |
@@ -202,6 +204,14 @@ agentic-web-spec/
 │   │   ├── layout.tsx              # Root layout — wraps Nav + RepoBar
 │   │   ├── page.tsx                # Agent selector landing page
 │   │   ├── globals.css
+│   │   ├── api/
+│   │   │   ├── agent/
+│   │   │   │   └── run/
+│   │   │   │       └── route.ts    # SSE proxy to backend /api/agent/run
+│   │   │   └── backend/
+│   │   │       └── workiq/
+│   │   │           └── search/
+│   │   │               └── route.ts # Proxy to backend /api/workiq/search
 │   │   ├── agents/
 │   │   │   └── [slug]/
 │   │   │       └── page.tsx        # Dynamic agent chat page
@@ -312,6 +322,7 @@ All API endpoints are served by the backend on port `3001`.
 | `GET` | `/api/admin/agents/:slug` | Get a single agent's YAML config |
 | `PUT` | `/api/admin/agents/:slug` | Update an agent's YAML config |
 | `GET` | `/health` | Health check — returns `200 OK` |
+| `POST` | `/api/backend/workiq/search` | Frontend proxy route — forwards WorkIQ search requests to the backend (90 s timeout) |
 
 ---
 
@@ -348,6 +359,8 @@ The frontend requires no server-side environment variables. The GitHub PAT is st
 1. Create a new YAML file in `backend/agents/` following the pattern of an existing agent file.
 2. Register the slug → filename mapping in `backend/src/lib/agentFileMap.ts`.
 3. Register the agent in `frontend/lib/agents.ts` with its `slug`, display name, description, and `nextAgent` if it chains.
+
+> **Action agents** (spec-writer, prd-writer, issue-creator) are an exception: they still require steps 1 and 2, but they are **not** added to the `AGENTS` array in `frontend/lib/agents.ts`. Instead, action agents are triggered from post-action buttons hardcoded in `frontend/app/agents/[slug]/page.tsx`. Wire new action agents directly in that component rather than in the agents config.
 
 ---
 

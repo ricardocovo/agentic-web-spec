@@ -30,8 +30,8 @@ The Next.js 14 App Router frontend manages all user-facing state in React Contex
 flowchart TD
     subgraph Browser["Browser — localhost:3000"]
         Pages["Pages\n/ · /agents/[slug] · /dashboard · /kdb · /admin · /settings"]
-        Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal\nActionPanel · WorkIQModal · SettingsDropdown"]
-        AppCtx["AppProvider — React Context\npat · username · activeRepo · featureFlags"]
+        Components["Components\nChatInterface · SpaceSelector · Nav\nRepoBar · PATModal · RepoSelectorModal\nActionPanel · WorkIQModal · WorkIQContextChips\nSettingsDropdown"]
+        AppCtx["AppProvider — React Context\npat · username · activeRepo · featureFlags · hydrated"]
         LS[("localStorage\nsessions · activity\nPAT · username · activeRepo")]
     end
 
