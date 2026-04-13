@@ -1,0 +1,33 @@
+name: Documentation Reporter
+
+on:
+  workflow_dispatch:
+
+jobs:
+  report:
+    name: Generate Architect Metadata
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download repo-metadata-generator pack
+        run: |
+          curl -L -o repo-metadata-generator-1.0.0.tar.gz \
+            "https://github.com/ricardocovo/agent-primitives/raw/main/packs/repo-metadata-generator-1.0.0.tar.gz"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install GitHub Copilot CLI
+        run: npm i -g @github/copilot
+
+      - name: Install APM
+        run: |
+          curl -sSL https://aka.ms/apm-unix | sh
+          apm unpack repo-metadata-generator-1.0.0.tar.gz 
