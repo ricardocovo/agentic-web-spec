@@ -10,6 +10,8 @@ Simply point it at any GitHub repository, describe what you need, and a chained 
 
 Each agent hands off its output to the next, streaming results in real time. The result? Business users can drive spec creation, align with engineering early, and accelerate delivery — turning GitHub Copilot from a developer tool into a shared team superpower.
 
+See it in action https://youtu.be/SPcjKR05C0A
+
 ---
 
 ## Table of Contents
