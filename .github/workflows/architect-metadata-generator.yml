@@ -5,7 +5,7 @@ on:
 
 jobs:
   report:
-    name: Generate Architect Metadata
+    name: Analyze Repository and Generate Architect Metadata
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,4 +30,19 @@ jobs:
       - name: Install APM and Unpack Metadata Generator
         run: |
           curl -sSL https://aka.ms/apm-unix | sh
-          apm unpack repo-metadata-generator-1.0.0.tar.gz 
+          apm unpack repo-metadata-generator-1.0.0.tar.gz
+          
+      - name: Run Documentation
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN}}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          copilot --agent repo-analyzer --prompt "/fleet Run all the prompts in the .github/prompts" --allow-all-tools --allow-all-paths < /dev/null
+
+      - name: Upload architect metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: architect-metadata
+          path: architects-metadata/
