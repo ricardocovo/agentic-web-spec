@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          copilot --agent repo-analyzer --silent "/fleet Run all the prompts in the .github/prompts" --allow-all-tools --allow-all-paths < /dev/null
+          copilot --agent repo-analyzer --prompt "/fleet Run all the prompts in the .github/prompts" --silent --allow-all-tools --allow-all-paths < /dev/null
 
       - name: Upload architect metadata
         uses: actions/upload-artifact@v4
