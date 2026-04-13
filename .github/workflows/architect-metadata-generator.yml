@@ -27,7 +27,7 @@ jobs:
       - name: Install GitHub Copilot CLI
         run: npm i -g @github/copilot
 
-      - name: Install APM
+      - name: Install APM and Unpack Metadata Generator
         run: |
           curl -sSL https://aka.ms/apm-unix | sh
           apm unpack repo-metadata-generator-1.0.0.tar.gz 
