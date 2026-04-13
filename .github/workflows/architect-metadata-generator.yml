@@ -1,4 +1,4 @@
-name: Documentation Reporter
+name: Generate Architect Metadata
 
 on:
   workflow_dispatch:
