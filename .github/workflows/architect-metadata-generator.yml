@@ -20,7 +20,7 @@ jobs:
             "https://github.com/ricardocovo/agent-primitives/raw/main/packs/repo-metadata-generator-1.0.0.tar.gz"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
